@@ -1,0 +1,188 @@
+
+#include "samplers.h"
+#include "../util/rand.h"
+#include "../scene/shape.h"
+
+constexpr bool IMPORTANCE_SAMPLING = true;
+
+namespace Samplers {
+
+Vec2 Rect::sample(RNG &rng) const {
+	//A3T1 - step 2 - supersampling
+
+    // Return a point selected uniformly at random from the rectangle [0,size.x)x[0,size.y)
+    // Useful function: rng.unit()
+
+    return rng.unit() * size;
+}
+
+float Rect::pdf(Vec2 at) const {
+	if (at.x < 0.0f || at.x > size.x || at.y < 0.0f || at.y > size.y) return 0.0f;
+	return 1.0f / (size.x * size.y);
+}
+
+Vec3 Point::sample(RNG &rng) const {
+	return point;
+}
+
+float Point::pdf(Vec3 at) const {
+	return at == point ? 1.0f : 0.0f;
+}
+
+Vec3 Triangle::sample(RNG &rng) const {
+	float u = std::sqrt(rng.unit());
+	float v = rng.unit();
+	float a = u * (1.0f - v);
+	float b = u * v;
+	return a * v0 + b * v1 + (1.0f - a - b) * v2;
+}
+
+float Triangle::pdf(Vec3 at) const {
+	float a = 0.5f * cross(v1 - v0, v2 - v0).norm();
+	float u = 0.5f * cross(at - v1, at - v2).norm() / a;
+	float v = 0.5f * cross(at - v2, at - v0).norm() / a;
+	float w = 1.0f - u - v;
+	if (u < 0.0f || v < 0.0f || w < 0.0f) return 0.0f;
+	if (u > 1.0f || v > 1.0f || w > 1.0f) return 0.0f;
+	return 1.0f / a;
+}
+
+Vec3 Hemisphere::Uniform::sample(RNG &rng) const {
+
+	float Xi1 = rng.unit();
+	float Xi2 = rng.unit();
+
+	float theta = std::acos(Xi1);
+	float phi = 2.0f * PI_F * Xi2;
+
+	float xs = std::sin(theta) * std::cos(phi);
+	float ys = std::cos(theta);
+	float zs = std::sin(theta) * std::sin(phi);
+
+	return Vec3(xs, ys, zs);
+}
+
+float Hemisphere::Uniform::pdf(Vec3 dir) const {
+	if (dir.y < 0.0f) return 0.0f;
+	return 1.0f / (2.0f * PI_F);
+}
+
+Vec3 Hemisphere::Cosine::sample(RNG &rng) const {
+
+	float phi = rng.unit() * 2.0f * PI_F;
+	float cos_t = std::sqrt(rng.unit());
+
+	float sin_t = std::sqrt(1 - cos_t * cos_t);
+	float x = std::cos(phi) * sin_t;
+	float z = std::sin(phi) * sin_t;
+	float y = cos_t;
+
+	return Vec3(x, y, z);
+}
+
+float Hemisphere::Cosine::pdf(Vec3 dir) const {
+	if (dir.y < 0.0f) return 0.0f;
+	return dir.y / PI_F;
+}
+
+Vec3 Sphere::Uniform::sample(RNG &rng) const {
+	//A3T7 - sphere sampler
+
+    // Generate a uniformly random point on the unit sphere.
+    // Tip: start with Hemisphere::Uniform
+
+	Samplers::Hemisphere::Uniform hemisphere;
+
+	auto point = hemisphere.sample(rng);
+	if (rng.coin_flip(0.5f)) {
+		point.y = -point.y;
+	}
+
+	return point;
+}
+
+float Sphere::Uniform::pdf(Vec3 dir) const {
+	return 1.0f / (4.0f * PI_F);
+}
+
+Sphere::Image::Image(const HDR_Image& image) {
+    //A3T7 - image sampler init
+
+    // Set up importance sampling data structures for a spherical environment map image.
+    // You may make use of the _pdf, _cdf, and total members, or create your own.
+
+    const auto [_w, _h] = image.dimension();
+    w = _w;
+    h = _h;
+
+	_pdf.resize(w * h);
+	_cdf.resize(w * h);
+
+	float sum = 0.0f;
+	for (uint32_t y = 0; y < h; y++) {
+		auto theta = PI_F - (y + 0.5f) / h * PI_F;
+		auto sinTheta = std::sin(theta);
+		for (uint32_t x = 0; x < w; x++) {
+			auto i = y * w + x;
+			auto pixel = image.at(x, y);
+			auto luminance = pixel.luma();
+			_pdf[i] = luminance * sinTheta;
+			sum += _pdf[i];
+		}
+	}
+
+	for (auto& pdf : _pdf) {
+		pdf /= sum;
+	}
+
+	_cdf[0] = _pdf[0];
+	for (uint32_t i = 1; i < w * h; i++) {
+		_cdf[i] = _cdf[i - 1] + _pdf[i];
+	}
+}
+
+Vec3 Sphere::Image::sample(RNG &rng) const {
+	if(!IMPORTANCE_SAMPLING) {
+		// Step 1: Uniform sampling
+		// Declare a uniform sampler and return its sample
+    	auto uniformSampler = Samplers::Sphere::Uniform{};
+		return uniformSampler.sample(rng);
+	} else {
+		// Step 2: Importance sampling
+		// Use your importance sampling data structure to generate a sample direction.
+		// Tip: std::upper_bound
+		auto p = rng.unit();
+		auto i = std::upper_bound(_cdf.begin(), _cdf.end(), p) - _cdf.begin();
+		auto x = i % w;	
+		auto y = i / w;
+		auto u = (float)x / (float)w;
+		auto v = (float)y / (float)h;
+		auto theta = PI_F - v * PI_F;
+		auto phi = u * 2.0f * PI_F;
+		auto sampleX = std::sin(theta) * std::cos(phi);
+		auto sampleY = std::cos(theta);
+		auto sampleZ = std::sin(theta) * std::sin(phi);
+		
+		return Vec3(sampleX, sampleY, sampleZ);
+	}
+}
+
+float Sphere::Image::pdf(Vec3 dir) const {
+    if(!IMPORTANCE_SAMPLING) {
+		// Step 1: Uniform sampling
+		// Declare a uniform sampler and return its pdf
+    	auto uniformSampler = Samplers::Sphere::Uniform{};
+		return uniformSampler.pdf(dir);
+	} else {
+		// A3T7 - image sampler importance sampling pdf
+		// What is the PDF of this distribution at a particular direction?
+    	auto uv = Shapes::Sphere::uv(dir);
+		auto theta = PI_F - uv.y * PI_F;
+		auto jacobian = (w * h) / (2.0f * PI_F * PI_F * std::sin(theta));
+		auto i = uv.y * h * w + uv.x * w;
+		
+		return _pdf[i] * jacobian;
+	}
+}
+
+} // namespace Samplers
