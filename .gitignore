@@ -1,12 +1,4 @@
-.vs/
-imgui.ini
-.vscode/settings.json
+.idea/
+*.ppm
+ispcRayTracer
 .DS_Store
-Scotty3D*
-maek-cache.json
-objs/
-README-SDL.txt
-SDL2.dll
-nest-libs/
-handin*
-media/environment_maps
