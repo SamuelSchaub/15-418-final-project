@@ -1,4 +1,6 @@
 .idea/
 *.ppm
-ispcRayTracer
+sequential/sequential
+parallel/parallel
 .DS_Store
+*.o
