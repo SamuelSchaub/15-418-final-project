@@ -1,7 +1,7 @@
 // Constants
 
-const float infinity = 0x7f800000;
 const float pi = 3.1415926535897932385;
+const float infinity = 340282346638528859811704183484516925440.0f;
 
 // Utility Functions
 
@@ -9,7 +9,7 @@ inline float degreesToRadians(float degrees) {
   return degrees * pi / 180.0;
 }
 
-===============================================================================
+// ===============================================================================
 
 // Vec3
 
@@ -39,14 +39,14 @@ inline Vec3 unitVector(Vec3 v) {
     return v / length(v);
 }
 
-===============================================================================
+// ===============================================================================
 
 // Random
 
 
 float randomFloat() {
     RNGState state;
-    int seed = 234567876534567;
+    int seed = 234567876534567; // TODO implement proper seeding based system time
     seed_rng(&state, seed);
     float randFloat = frandom(&state);
     return randFloat;
@@ -88,7 +88,7 @@ inline Vec3 randomVecOnHemisphere(Vec3& normal) {
     }
 }
 
-===============================================================================
+// ===============================================================================
 
 // Color
 
@@ -103,7 +103,7 @@ void writeColor(Vec3& pixelColor, int samplesPerPixel) {
     pixelColor.z = linearToGamma(pixelColor.z); 
 }
 
-===============================================================================
+// ===============================================================================
 
 // Ray
 
@@ -112,26 +112,44 @@ struct Ray {
     Vec3 direction;
 };
 
-Vec3 rayAt(Ray& ray, float t) {
+Vec3 rayAt(const Ray& ray, float t) {
     return ray.origin + t * ray.direction;
 }
 
-===============================================================================
+
+// ===============================================================================
+
+// Hit Record 
+
+struct HitRecord {
+    Point3 p;
+    Vec3 normal;
+    float t;
+    bool frontFace;
+};
+
+void setFaceNormal(HitRecord& rec, const Ray& r, const Vec3& outwardNormal) {
+    rec.frontFace = dot(r.direction, outwardNormal) < 0;
+    rec.normal = rec.frontFace ? outwardNormal : -outwardNormal;
+}
+
+// ===============================================================================
 
 // Sphere Hittable
 
 struct Sphere {
-    Point3 center;
-    float radius;
+    uniform Point3 center;
+    uniform float radius;
 };
 
-bool hitSphere(Sphere* sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
-    Vec3 oc = r.origin - center;
+bool hitSphere(uniform const Sphere& sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+    Vec3 oc = r.origin - sphere.center;
     float a = lengthSquared(r.direction);
     float halfB = dot(oc, r.direction);
-    float c = lengthSquared(oc) - radius * radius;
+    float c = lengthSquared(oc) - sphere.radius * sphere.radius;
 
     float discriminant = (halfB * halfB) - (a * c);
+    if (discriminant < 0) return false;
     float sqrtd = sqrt(discriminant);
     
     float root = (-halfB - sqrtd) / a;
@@ -142,71 +160,45 @@ bool hitSphere(Sphere* sphere, const Ray& r, float rayTmin, float rayTmax, HitRe
         }
     }
     
-    rec.t = root.
+    rec.t = root;
     rec.p = rayAt(r, rec.t);
-    Vec3 outwardNormal = (rec.p - center) / radius;
+    Vec3 outwardNormal = (rec.p - sphere.center) / sphere.radius;
     setFaceNormal(rec, r, outwardNormal);
     return true;
 }
 
-bool (*hitSphereFnPtr)(Sphere* sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec);
-hitSphereFnPtr = &hitSphere;
-
-void freeSphere(Sphere* sphere) {
+void freeSphere(uniform const Sphere* sphere) {
     delete[] sphere;
 }
 
-void (*freeSphereFnPtr)(Sphere* sphere);
-freeSphereFnPtr = &freeSphere;
-
-===============================================================================
+// ===============================================================================
 
 // Hittable
 
-struct HitRecord {
-    Point3 p;
-    Vec3 normal;
-    float t;
-    bool frontFace;
-};
-
-void setFaceNormal(HitRecord* rec, const Ray& r, const Vec3& outwardNormal) {
-    rec->frontFace = dot(r.direction, outwardNormal) < 0;
-    rec->normal = frontFace ? outwardNormal : -outwardNormal;
-})
+typedef void* Hittable;
 
 enum HittableType {
     SPHERE
 };
 
-bool hit(const Ray& r, float rayTmin, float rayTmax, HitRecord& rec, HittableType type, void* hittable) {
-    switch (type)
-    {
-        case SPHERE:
-            return (*hitSphereFnPtr)((Sphere*)hittable, r, rayTmin, rayTmax, rec));
-        default:
-            return false;
-    }
-}
-
-===============================================================================
+// ===============================================================================
 
 // Hittable List
 
 struct HittableList {
-    Hittable* objects[];
-    HittableType objectTypes[];
-    int numObjects;
-}
+    uniform Hittable* objects;
+    uniform HittableType* objectTypes;
+    uniform int numObjects;
+};
 
-void clear(HittableList* hittableList) {
-    for (int i = 0; i < hittableList->numObjects; i++) {
-        Hittable* hittable = hittableList->objects[i];
-        HittableType hittableType = hittableList->objectTypes[i];
+void clear(uniform HittableList& hittableList) {
+    for (int i = 0; i < hittableList.numObjects; i++) {
+        Hittable object = hittableList.objects[i];
+        HittableType hittableType = hittableList.objectTypes[i];
         switch (hittableType)
         {
             case SPHERE:
-                (*freeSphereFnPtr)((Sphere*)hittable);
+                freeSphere((uniform const Sphere*)object);
                 break;
         
             default:
@@ -215,15 +207,13 @@ void clear(HittableList* hittableList) {
     }
 }
 
-bool hitHittableList(HittableList* hittableList, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+bool hitSphereList(uniform const Sphere sphereList[], uniform int numSpheres, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
     HitRecord tempRec;
     bool hitAnything = false;
     float closestSoFar = rayTmax;
 
-    for (int i = 0; i < hittableList->numObjects; i++) {
-        HittableType objectType = hittableList->objectTypes[i];
-        void* object = HittableList->objects[i];
-        if (hit(r, rayTmin, rayTmax, rec, objectType, object)) {
+    for (uniform int i = 0; i < numSpheres; i++) {
+        if (hitSphere(sphereList[i], r, rayTmin, rayTmax, rec)) {
             hitAnything = true;
             closestSoFar = tempRec.t;
             rec = tempRec;
@@ -233,15 +223,15 @@ bool hitHittableList(HittableList* hittableList, const Ray& r, float rayTmin, fl
     return hitAnything;
 }
 
-===============================================================================
+// ===============================================================================
 
 // Camera (not done yet)
 
 struct Camera {
-    float aspectRatio = 1.0; // Ratio of image width over heigh
-    int imageWidth = 100; // Rendered image width in pixel count
-    int samplesPerPixel = 10; // Count of random samples for each pixel
-    int maxDepth = 10; // Maximum number of ray bounces into scene
+    float aspectRatio; // Ratio of image width over heigh
+    int imageWidth; // Rendered image width in pixel count
+    int samplesPerPixel; // Count of random samples for each pixel
+    int maxDepth; // Maximum number of ray bounces into scene
     int image_height;   // Rendered image height
     Point3 center;      // Camera center
     Point3 pixel00Location; // Location of pixel (0,0)

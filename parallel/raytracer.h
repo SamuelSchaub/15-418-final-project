@@ -7,6 +7,14 @@
 #pragma once
 #include <stdint.h>
 
+#if !defined(__cplusplus)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+#include <stdbool.h>
+#else
+typedef int bool;
+#endif
+#endif
+
 
 
 #ifdef __cplusplus
@@ -25,17 +33,6 @@ namespace ispc { /* namespace */
 #endif
 #endif
 
-
-///////////////////////////////////////////////////////////////////////////
-// Functions exported from ispc code
-///////////////////////////////////////////////////////////////////////////
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
-extern "C" {
-#endif // __cplusplus
-    extern void simple(float * vin, float * vout, int32_t count);
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
-} /* end extern C */
-#endif // __cplusplus
 
 
 #ifdef __cplusplus
