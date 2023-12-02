@@ -21,16 +21,16 @@ export Vec3;
 export Color;
 export Point3;
 
-float lengthSquared(const Vec3& v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
-}
-
-float length(const Vec3 v) {
-    return sqrt(lengthSquared(v));
-}
-
 inline float dot(const Vec3& u, const Vec3& v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+float lengthSquared(const Vec3& v) {
+    return dot(v, v);
+}
+
+float length(const Vec3& v) {
+    return sqrt(lengthSquared(v));
 }
 
 inline Vec3 cross(const Vec3& u, const Vec3& v) {
@@ -40,7 +40,7 @@ inline Vec3 cross(const Vec3& u, const Vec3& v) {
     return product;
 }
 
-inline Vec3 unitVector(Vec3 v) {
+inline Vec3 unitVector(const Vec3& v) {
     return v / length(v);
 }
 
@@ -102,18 +102,9 @@ float linearToGamma(float linearComponenet) {
 }
 
 void writeColor(Color& pixelColor, int samplesPerPixel, uniform int out[], int k) {
-    pixelColor = (1.0f / samplesPerPixel) * pixelColor;
-    pixelColor.x = linearToGamma(pixelColor.x); 
-    pixelColor.y = linearToGamma(pixelColor.y); 
-    pixelColor.z = linearToGamma(pixelColor.z); 
-    
-    float low = 0.000;
-    float high = 0.999;
-
-    print("Instance % writing to pixel % \n", programIndex, k);
-    out[k] = (int)(255.999 * clamp(pixelColor.x, low, high));
-    out[k + 1] = (int)(255.999 * clamp(pixelColor.y, low, high));
-    out[k + 2] = (int)(255.999 * clamp(pixelColor.z, low, high));
+    out[k] = (int)(255.999 * pixelColor.x);
+    out[k + 1] = (int)(255.999 * pixelColor.y);
+    out[k + 2] = (int)(255.999 * pixelColor.z);
 }
 
 // ===============================================================================
@@ -256,32 +247,40 @@ export void initialize(uniform Camera& cam) {
     cam.imageHeight = (int)(cam.imageWidth / cam.aspectRatio);
     cam.imageHeight = (cam.imageHeight < 1) ? 1 : cam.imageHeight;
 
-    uniform Point3 origin = {0, 0, 0};
+    uniform Point3 origin = {0.0f, 0.0f, 0.0f};
     cam.center = origin;
 
     // Determine viewport dimensions.
-    uniform float focalLength = 1.0;
-    uniform float viewportHeight = 2.0;
-    uniform float viewportWidth = viewportHeight * ((float)cam.imageWidth) / cam.imageHeight;
+    uniform float focalLength = 1.0f;
+    uniform float viewportHeight = 2.0f;
+    uniform float viewportWidth = viewportHeight * (float)cam.imageWidth / (float)cam.imageHeight;
     
     // Calculate the vectors across the horizontal and down the vertical
     // viewport edges.
-    uniform Vec3 viewportU = {viewportWidth, 0, 0};
-    uniform Vec3 viewportV = {0, -viewportHeight, 0};
+    uniform Vec3 viewportU = {viewportWidth, 0.0f, 0.0f};
+    uniform Vec3 viewportV = {0.0f, -viewportHeight, 0.0f};
 
     // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-    cam.pixelDeltaU = viewportU / cam.imageWidth;
-    cam.pixelDeltaV = viewportV / cam.imageHeight;
+    cam.pixelDeltaU = viewportU / (float)cam.imageWidth;
+    cam.pixelDeltaV = viewportV / (float)cam.imageHeight;
 
     // Calculate the location of the upper left pixel.
-    uniform Vec3 focalLengthOffset = {0, 0, focalLength};
-    uniform Vec3 viewportUpperLeft = cam.center - focalLengthOffset - (viewportU / 2) - (viewportV / 2);
-    uniform Point3 pixel00Location = viewportUpperLeft + 0.5 * (cam.pixelDeltaU + cam.pixelDeltaV);
+    uniform Vec3 focalLengthOffset = {0.0f, 0.0f, focalLength};
+    uniform Vec3 viewportUpperLeft = cam.center - focalLengthOffset - (viewportU / 2.0f) - (viewportV / 2.0f);
+    uniform Point3 pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
+    
+    print("viewPortU: % % %\n", viewportU.x, viewportU.y, viewportU.z);
+    print("viewPortV: % % %\n", viewportV.x, viewportV.y, viewportV.z);
+    print("pixelDeltaU: % % %\n", cam.pixelDeltaU.x, cam.pixelDeltaU.y, cam.pixelDeltaU.z);
+    print("pixelDeltaV: % % %\n", cam.pixelDeltaV.x, cam.pixelDeltaV.y, cam.pixelDeltaV.z);
+    print("viewportUpperLeft: % % %\n", viewportUpperLeft.x, viewportUpperLeft.y, viewportUpperLeft.z);
+    print("pixel00Location: % % %\n", pixel00Location.x, pixel00Location.y, pixel00Location.z);
+    
 }
 
 Vec3 pixelSampleSquare(uniform Camera& cam) {
-    float px = -0.5 + randomFloat();
-    float py = -0.5 + randomFloat();
+    float px = -0.5f + randomFloat();
+    float py = -0.5f + randomFloat();
     return (px * cam.pixelDeltaU) + (py * cam.pixelDeltaV);
 }
 
@@ -304,36 +303,26 @@ Ray getRay(uniform Camera& cam, int i, int j) {
 Color rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
     HitRecord rec;
 
-    Color white = {0, 0, 0};
-    if (depth <= 0) return white;
-
-    float minBound = 0.001;
-    float maxBound = infinity;
-    if (hitSphereList(sphereList, numSpheres, r, minBound, maxBound, rec)) {
-        Vec3 direction = rec.normal + randomUnitVec();
-
-        Ray bouncedRay;
-        bouncedRay.origin = rec.p;
-        bouncedRay.direction = direction;
-
-        return 0.5 * rayColor(bouncedRay, depth - 1, sphereList, numSpheres);
-    }
-
+    Color colorOffset = {1.0f, 1.0f, 1.0f};
+    Color colorOffset2 = {0.5f, 0.7f, 1.0f};
+    
     Vec3 unitDirection = unitVector(r.direction);
-    float a = 0.5 * (unitDirection.y + 1.0);
-
-    Color color1 = {1.0, 1.0, 1.0};
-    Color color2 = {0.5, 0.7, 1.0};
-    return (1.0 - a) * color1 + a * color2;
+    // print("dirX % dirY % dirZ %\n", unitDirection.x, unitDirection.y, unitDirection.z);
+    // print("rdirX % rdirY % rdirZ %\n", r.direction.x, r.direction.y, r.direction.z);
+    float a = 0.5f * (unitDirection.y + 1.0f);
+    return (1.0f - a) * colorOffset + a * colorOffset2;
 }
 
 export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
-    foreach(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
-        Color pixelColor = {0, 0, 0};
-        for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
-            Ray r = getRay(cam, i, j);
-            pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
-        }
+    foreach_tiled(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
+        Point3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
+        Vec3 rayDirection = pixelCenter - cam.center;
+
+        Ray r;
+        r.origin = cam.center;
+        r.direction = rayDirection;
+
+        Color pixelColor = rayColor(r, 0, sphereList, numSpheres);
         int k = (j * cam.imageWidth + i) * 3;
         writeColor(pixelColor, cam.samplesPerPixel, out, k);
     }

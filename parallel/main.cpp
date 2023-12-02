@@ -33,13 +33,11 @@ int main() {
 
     std::cout << "P3\n" << camera.imageWidth << ' ' << camera.imageHeight << "\n255\n";
     for (int j = 0; j < camera.imageHeight; ++j) {
-        std::clog << "\rScanlines remaining: " << (camera.imageHeight - j) << ' ' << std::flush;
         for (int i = 0; i < camera.imageWidth; ++i) {
             int k = (j * camera.imageWidth + i) * 3;
             std::cout << out[k] << ' ' << out[k + 1] << ' ' << out[k + 2] << '\n';
         }
     }
-    std::clog << "\rDone.                 \n";
 
     delete[] out;
     return 0;
