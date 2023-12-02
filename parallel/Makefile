@@ -11,7 +11,8 @@ $(TARGET): $(SOURCE)
 clean:
 	rm -f $(TARGET):
 run:
+	rm -rf image.ppm
 	./$(TARGET) >> image.ppm
 all:
-	ispc -o raytracer.o -h raytracer.h raytracer.ispc -O2 --target=neon-i32x4
+	ispc -o raytracer.o -h raytracer.h raytracer.ispc -O2 --target=neon-i32x8
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCE) raytracer.o

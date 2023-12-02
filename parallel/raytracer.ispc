@@ -1,11 +1,11 @@
 // Constants
 
-const uniform float pi = 3.1415926535897932385f;
-const uniform float infinity = 340282346638528859811704183484516925440.0f;
+const float pi = 3.1415926535897932385f;
+const float infinity = 340282346638528859811704183484516925440.0f;
 
 // Utility Functions
 
-uniform inline float degreesToRadians(uniform float degrees) {
+inline float degreesToRadians(float degrees) {
   return degrees * pi / 180.0f;
 }
 
@@ -21,26 +21,26 @@ export Vec3;
 export Color;
 export Point3;
 
-uniform float lengthSquared(const uniform Vec3& v) {
+float lengthSquared(const Vec3& v) {
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-uniform float length(const uniform Vec3 v) {
+float length(const Vec3 v) {
     return sqrt(lengthSquared(v));
 }
 
-uniform inline float dot(const uniform Vec3& u, const uniform Vec3& v) {
+inline float dot(const Vec3& u, const Vec3& v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-uniform inline Vec3 cross(const uniform Vec3& u, const uniform Vec3& v) {
-    uniform Vec3 product = { u.y * v.z - u.z * v.x, 
-                     u.z * v.x - u.x * v.z,
-                     u.x * v.y - u.y * v.x };
+inline Vec3 cross(const Vec3& u, const Vec3& v) {
+    Vec3 product = { u.y * v.z - u.z * v.y, 
+                             u.z * v.x - u.x * v.z,
+                             u.x * v.y - u.y * v.x };
     return product;
 }
 
-uniform inline Vec3 unitVector(uniform Vec3 v) {
+inline Vec3 unitVector(Vec3 v) {
     return v / length(v);
 }
 
@@ -49,43 +49,43 @@ uniform inline Vec3 unitVector(uniform Vec3 v) {
 // Random
 
 
-uniform float randomFloat() {
-    uniform RNGState state;
-    uniform int seed = 234567876534567; // TODO implement proper seeding based system time
+float randomFloat() {
+    RNGState state;
+    int seed = 234567876534567; // TODO implement proper seeding based system time
     seed_rng(&state, seed);
-    uniform float randFloat = frandom(&state);
+    float randFloat = frandom(&state);
     return randFloat;
 }
 
-uniform float randomFloat(uniform float min, uniform float max) {
-    return min + (max - min) * randomFloat();
+float randomFloat(float minVal, float maxVal) {
+    return minVal + (maxVal - minVal) * randomFloat();
 }
 
 // Random vector functions
 
-uniform Vec3 randomVec() {
-    uniform Vec3 v = { randomFloat(), randomFloat(), randomFloat() };
+Vec3 randomVec() {
+    Vec3 v = { randomFloat(), randomFloat(), randomFloat() };
     return v;
 }
 
-uniform Vec3 randomVec(uniform float min, uniform float max) {
-    uniform Vec3 v = { randomFloat(min, max), randomFloat(min, max), randomFloat(min, max) };
+Vec3 randomVec(float minVal, float maxVal) {
+    Vec3 v = { randomFloat(minVal, maxVal), randomFloat(minVal, maxVal), randomFloat(minVal, maxVal) };
     return v;
 }
 
-uniform inline Vec3 randomVecInUnitSphere() {
+inline Vec3 randomVecInUnitSphere() {
     while (true) {
-        uniform Vec3 p = randomVec(-1, 1);
+        Vec3 p = randomVec(-1, 1);
         if (lengthSquared(p) < 1) return p;
     }
 }
 
-uniform inline Vec3 randomUnitVec() {
+inline Vec3 randomUnitVec() {
     return unitVector(randomVecInUnitSphere());
 }
 
-uniform inline Vec3 randomVecOnHemisphere(uniform Vec3& normal) {
-    uniform Vec3 onUnitSphere = randomUnitVec();
+inline Vec3 randomVecOnHemisphere(Vec3& normal) {
+    Vec3 onUnitSphere = randomUnitVec();
     if (dot(onUnitSphere, normal) > 0.0) {
         return onUnitSphere;
     } else {
@@ -97,22 +97,23 @@ uniform inline Vec3 randomVecOnHemisphere(uniform Vec3& normal) {
 
 // Color
 
-uniform float linearToGamma(uniform float linearComponenet) {
+float linearToGamma(float linearComponenet) {
     return sqrt(linearComponenet);
 }
 
-void writeColor(uniform Color& pixelColor, uniform int samplesPerPixel, uniform int out[], uniform int k) {
+void writeColor(Color& pixelColor, int samplesPerPixel, uniform int out[], int k) {
     pixelColor = (1.0f / samplesPerPixel) * pixelColor;
     pixelColor.x = linearToGamma(pixelColor.x); 
     pixelColor.y = linearToGamma(pixelColor.y); 
     pixelColor.z = linearToGamma(pixelColor.z); 
     
-    uniform float low = 0.000;
-    uniform float high = 0.999;
+    float low = 0.000;
+    float high = 0.999;
 
-    out[k] = (uniform int)(255.999 * clamp(pixelColor.x, low, high));
-    out[k + 1] = (uniform int)(255.999 * clamp(pixelColor.y, low, high));
-    out[k + 2] = (uniform int)(255.999 * clamp(pixelColor.z, low, high));
+    print("Instance % writing to pixel % \n", programIndex, k);
+    out[k] = (int)(255.999 * clamp(pixelColor.x, low, high));
+    out[k + 1] = (int)(255.999 * clamp(pixelColor.y, low, high));
+    out[k + 2] = (int)(255.999 * clamp(pixelColor.z, low, high));
 }
 
 // ===============================================================================
@@ -120,11 +121,11 @@ void writeColor(uniform Color& pixelColor, uniform int samplesPerPixel, uniform 
 // Ray
 
 struct Ray {
-    uniform Vec3 origin;
-    uniform Vec3 direction;
+    Vec3 origin;
+    Vec3 direction;
 };
 
-uniform Vec3 rayAt(uniform const Ray& ray, uniform float t) {
+Vec3 rayAt(const Ray& ray, float t) {
     return ray.origin + t * ray.direction;
 }
 
@@ -134,13 +135,13 @@ uniform Vec3 rayAt(uniform const Ray& ray, uniform float t) {
 // Hit Record 
 
 struct HitRecord {
-    uniform Point3 p;
-    uniform Vec3 normal;
-    uniform float t;
-    uniform bool frontFace;
+    Point3 p;
+    Vec3 normal;
+    float t;
+    bool frontFace;
 };
 
-void setFaceNormal(uniform HitRecord& rec, uniform const Ray& r, uniform const Vec3& outwardNormal) {
+void setFaceNormal(HitRecord& rec, const Ray& r, const Vec3& outwardNormal) {
     rec.frontFace = dot(r.direction, outwardNormal) < 0;
     rec.normal = rec.frontFace ? outwardNormal : -outwardNormal;
 }
@@ -150,21 +151,21 @@ void setFaceNormal(uniform HitRecord& rec, uniform const Ray& r, uniform const V
 // Sphere Hittable
 
 export struct Sphere {
-    uniform Point3 center;
-    uniform float radius;
+    Point3 center;
+    float radius;
 };
 
-uniform bool hitSphere(uniform const Sphere& sphere, uniform const Ray& r, uniform float rayTmin, uniform float rayTmax, uniform HitRecord& rec) {
-    uniform Vec3 oc = r.origin - sphere.center;
-    uniform float a = lengthSquared(r.direction);
-    uniform float halfB = dot(oc, r.direction);
-    uniform float c = lengthSquared(oc) - sphere.radius * sphere.radius;
+bool hitSphere(const Sphere sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+    Vec3 oc = r.origin - sphere.center;
+    float a = lengthSquared(r.direction);
+    float halfB = dot(oc, r.direction);
+    float c = lengthSquared(oc) - sphere.radius * sphere.radius;
 
-    uniform float discriminant = (halfB * halfB) - (a * c);
+    float discriminant = (halfB * halfB) - (a * c);
     if (discriminant < 0) return false;
-    uniform float sqrtd = sqrt(discriminant);
+    float sqrtd = sqrt(discriminant);
     
-    uniform float root = (-halfB - sqrtd) / a;
+    float root = (-halfB - sqrtd) / a;
     if (!(rayTmin < root && root < rayTmax)) {
         root = (-halfB + sqrtd) / a;
         if (!(rayTmin < root && root < rayTmax)) {
@@ -174,12 +175,12 @@ uniform bool hitSphere(uniform const Sphere& sphere, uniform const Ray& r, unifo
     
     rec.t = root;
     rec.p = rayAt(r, rec.t);
-    uniform Vec3 outwardNormal = (rec.p - sphere.center) / sphere.radius;
+    Vec3 outwardNormal = (rec.p - sphere.center) / sphere.radius;
     setFaceNormal(rec, r, outwardNormal);
     return true;
 }
 
-void freeSphere(uniform const Sphere* sphere) {
+void freeSphere(const Sphere* sphere) {
     delete[] sphere;
 }
 
@@ -198,12 +199,12 @@ enum HittableType {
 // Hittable List
 
 struct HittableList {
-    uniform Hittable* objects;
-    uniform HittableType* objectTypes;
-    uniform int numObjects;
+    Hittable* objects;
+    HittableType* objectTypes;
+    int numObjects;
 };
 
-// void clear(uniform HittableList& hittableList) {
+// void clear(HittableList& hittableList) {
 //     for (int i = 0; i < hittableList.numObjects; i++) {
 //         uniform Hittable object = hittableList.objects[i];
 //         uniform HittableType hittableType = hittableList.objectTypes[i];
@@ -219,13 +220,13 @@ struct HittableList {
 //     }
 // }
 
-uniform bool hitSphereList(uniform const Sphere sphereList[], uniform int numSpheres, uniform const Ray& r, uniform float rayTmin, uniform float rayTmax, uniform HitRecord& rec) {
-    uniform HitRecord tempRec;
-    uniform bool hitAnything = false;
-    uniform float closestSoFar = rayTmax;
-
-    for (uniform int i = 0; i < numSpheres; i++) {
-        if (hitSphere(sphereList[i], r, rayTmin, rayTmax, rec)) {
+bool hitSphereList(uniform const Sphere sphereList[], uniform int numSpheres, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+    HitRecord tempRec;
+    bool hitAnything = false;
+    float closestSoFar = rayTmax;
+    
+    for (int i = 0; i < numSpheres; i++) {
+        if (hitSphere(sphereList[i], r, rayTmin, closestSoFar, tempRec)) {
             hitAnything = true;
             closestSoFar = tempRec.t;
             rec = tempRec;
@@ -278,63 +279,62 @@ export void initialize(uniform Camera& cam) {
     uniform Point3 pixel00Location = viewportUpperLeft + 0.5 * (cam.pixelDeltaU + cam.pixelDeltaV);
 }
 
-uniform Vec3 pixelSampleSquare(uniform Camera& cam) {
-    uniform float px = -0.5 + randomFloat();
-    uniform float py = -0.5 + randomFloat();
+Vec3 pixelSampleSquare(uniform Camera& cam) {
+    float px = -0.5 + randomFloat();
+    float py = -0.5 + randomFloat();
     return (px * cam.pixelDeltaU) + (py * cam.pixelDeltaV);
 }
 
-uniform Ray getRay(uniform Camera& cam, uniform int i, uniform int j) {
+Ray getRay(uniform Camera& cam, int i, int j) {
     // Get a randomly sampled camera ray for the pixel at location i,j.
-    uniform Point3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
-    uniform Point3 pixelSample = pixelCenter + pixelSampleSquare(cam);
+    Point3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
+    Point3 pixelSample = pixelCenter + pixelSampleSquare(cam);
 
-    uniform Point3 rayOrigin = cam.center;
-    uniform Point3 rayDirection = pixelSample - rayOrigin;
+    Point3 rayOrigin = cam.center;
+    Point3 rayDirection = pixelSample - rayOrigin;
 
-    uniform Ray r;
+
+    Ray r;
     r.origin = rayOrigin;
     r.direction = rayDirection;
 
     return r;
 }
 
-uniform Color rayColor(uniform const Ray& r, uniform int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
-    uniform HitRecord rec;
+Color rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
+    HitRecord rec;
 
-    uniform Color white = {0, 0, 0};
+    Color white = {0, 0, 0};
     if (depth <= 0) return white;
 
-    uniform float minBound = 0.001;
-    uniform float maxBound = infinity;
+    float minBound = 0.001;
+    float maxBound = infinity;
     if (hitSphereList(sphereList, numSpheres, r, minBound, maxBound, rec)) {
-        uniform Vec3 direction = rec.normal + randomUnitVec();
+        Vec3 direction = rec.normal + randomUnitVec();
 
-        uniform Ray bouncedRay;
+        Ray bouncedRay;
         bouncedRay.origin = rec.p;
         bouncedRay.direction = direction;
 
         return 0.5 * rayColor(bouncedRay, depth - 1, sphereList, numSpheres);
     }
 
-    uniform Vec3 unitDirection = unitVector(r.direction);
-    uniform float a = 0.5 * (unitDirection.y + 1.0);
+    Vec3 unitDirection = unitVector(r.direction);
+    float a = 0.5 * (unitDirection.y + 1.0);
 
-    uniform Color color1 = {1.0, 1.0, 1.0};
-    uniform Color color2 = {0.5, 0.7, 1.0};
+    Color color1 = {1.0, 1.0, 1.0};
+    Color color2 = {0.5, 0.7, 1.0};
     return (1.0 - a) * color1 + a * color2;
 }
 
 export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
-    for (uniform int j = 0; j < cam.imageHeight; j++) {
-        for (uniform int i = 0; i < cam.imageWidth; i++) {
-            uniform Color pixelColor = {0, 0, 0};
-            for (uniform int sample = 0; sample < cam.samplesPerPixel; sample++) {
-                uniform Ray r = getRay(cam, i, j);
-                pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
-            }
-            uniform int k = (j * cam.imageWidth + i) * 3;
-            writeColor(pixelColor, cam.samplesPerPixel, out, k);
+    foreach(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
+        Color pixelColor = {0, 0, 0};
+        for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
+            Ray r = getRay(cam, i, j);
+            pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
         }
+        int k = (j * cam.imageWidth + i) * 3;
+        writeColor(pixelColor, cam.samplesPerPixel, out, k);
     }
 }
