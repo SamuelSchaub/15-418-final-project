@@ -62,10 +62,10 @@ struct Camera {
 };
 #endif
 
-#ifndef __ISPC_STRUCT_Sphere__
+#ifndef __ISPC_STRUCT_Sphere_
 #define __ISPC_STRUCT_Sphere__
 struct Sphere {
-    struct float3  center;
+    struct float3 center;
     float radius;
 };
 #endif
@@ -82,11 +82,6 @@ extern "C" {
 #else
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
-#if defined(__cplusplus)
-    extern void renderPixel(struct Camera &cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
-#else
-    extern void renderPixel(struct Camera *cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
-#endif // renderPixel function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

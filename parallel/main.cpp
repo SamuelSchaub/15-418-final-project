@@ -2,22 +2,35 @@
 #include <iostream>
 
 int main() {
-    int imageWidth = 256;
-    int imageHeight = 256;
+    ispc::Camera camera;
+    camera.aspectRatio = 16.0f / 9.0f;
+    camera.imageWidth = 400;
+    camera.samplesPerPixel = 64;
+    camera.maxDepth = 15;
+    ispc::initialize(camera);
 
-    std::cout << "P3\n" << imageWidth << ' ' << imageHeight << "\n255\n";
+    ispc::Sphere spheres[2];
+    
+    spheres[0].center = {0, 0, -1};
+    spheres[0].radius = 0.5;
+    
+    spheres[1].center = {0, -100.5, -1};
+    spheres[1].radius = 100;
 
-    for (int i = 0; i < imageHeight; i++) {
-        for (int j = 0; j < imageWidth; j++) {
-            auto r = double(j) / (imageWidth - 1);
-            auto g = double(i) / (imageHeight - 1);
-            auto b = 0.0;
+    int* out = new int[camera.imageWidth * camera.imageHeight * 3];
 
-            int ir = static_cast<int>(255.999 * r);
-            int ig = static_cast<int>(255.999 * g);
-            int ib = static_cast<int>(255.999 * b);
 
-            std::cout << ir << ' ' << ig << ' ' << ib << '\n';
+    ispc::renderPixel(camera, spheres, 2, out);
+
+    std::cout << "P3\n" << camera.imageWidth << ' ' << camera.imageHeight << "\n255\n";
+    for (int j = 0; j < camera.imageHeight; j++) {
+        for (int i = 0; i < camera.imageWidth; i++) {
+            int index = (j * camera.imageWidth + i) * 3;
+            std::cout << out[index] << ' ' << out[index + 1] << ' ' << out[index + 2] << '\n';
         }
     }
+
+    delete[] out;
+    
+    return 0;
 }
