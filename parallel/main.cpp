@@ -1,10 +1,26 @@
 #include "raytracer.h"
 #include <iostream>
+#include <chrono>
+
+
+void writePPMImage(int* data, int width, int height, const char *filename) {
+    FILE *fp = fopen(filename, "wb");
+
+    // write ppm header
+    fprintf(fp, "P3\n%d %d\n255\n", width, height);
+
+    for (int i = 0; i < width * height * 3; i += 3) {
+        fprintf(fp, "%d %d %d \n", data[i], data[i + 1], data[i + 2]);
+    }
+
+    fclose(fp);
+    printf("Done. \n");
+}
 
 int main() {
     ispc::Camera camera;
     camera.aspectRatio = 16.0f / 9.0f;
-    camera.imageWidth = 400;
+    camera.imageWidth = 3840;
     camera.samplesPerPixel = 100;
     camera.maxDepth = 50;
     ispc::initialize(camera);
@@ -29,15 +45,14 @@ int main() {
 
     int* out = new int[camera.imageWidth * camera.imageHeight * 3];
 
+    auto start = std::chrono::high_resolution_clock::now();
     ispc::renderPixel(camera, spheres, 2, out);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    std::cout << "P3\n" << camera.imageWidth << ' ' << camera.imageHeight << "\n255\n";
-    for (int j = 0; j < camera.imageHeight; ++j) {
-        for (int i = 0; i < camera.imageWidth; ++i) {
-            int k = (j * camera.imageWidth + i) * 3;
-            std::cout << out[k] << ' ' << out[k + 1] << ' ' << out[k + 2] << '\n';
-        }
-    }
+    std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
+
+    writePPMImage(out, camera.imageWidth, camera.imageHeight, "image.ppm");
 
     delete[] out;
     return 0;

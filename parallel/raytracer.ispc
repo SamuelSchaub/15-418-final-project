@@ -14,22 +14,17 @@ inline float degreesToRadians(float degrees) {
 // Vec3
 
 typedef float<3> Vec3;
-typedef float<3> Point3;
-typedef float<3> Color;
-
 export Vec3;
-export Color;
-export Point3;
 
 inline float dot(const Vec3& u, const Vec3& v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-float lengthSquared(const Vec3& v) {
+inline float lengthSquared(const Vec3& v) {
     return dot(v, v);
 }
 
-float length(const Vec3& v) {
+inline float length(const Vec3& v) {
     return sqrt(lengthSquared(v));
 }
 
@@ -48,12 +43,13 @@ inline Vec3 unitVector(const Vec3& v) {
 
 // Random
 
+static uint64 seed = 42;
+uniform uint64 lcgA = 1103515245;
+uniform uint64 lcgC = 12345;
 
 float randomFloat() {
-    RNGState state;
-    int seed = 234567876534567; // TODO implement proper seeding based system time
-    seed_rng(&state, seed);
-    float randFloat = frandom(&state);
+    seed = lcgA * seed + lcgC;
+    float randFloat = (float)(seed >> 32) / (float)(0x100000000);
     return randFloat;
 }
 
@@ -89,7 +85,7 @@ inline Vec3 randomVecOnHemisphere(Vec3& normal) {
     if (dot(onUnitSphere, normal) > 0.0) {
         return onUnitSphere;
     } else {
-        return -onUnitSphere;
+        return (-1.0f * onUnitSphere);
     }
 }
 
@@ -101,10 +97,22 @@ float linearToGamma(float linearComponenet) {
     return sqrt(linearComponenet);
 }
 
-void writeColor(Color& pixelColor, int samplesPerPixel, uniform int out[], int k) {
-    out[k] = (int)(255.999 * pixelColor.x);
-    out[k + 1] = (int)(255.999 * pixelColor.y);
-    out[k + 2] = (int)(255.999 * pixelColor.z);
+void writeColor(Vec3& pixelColor, int samplesPerPixel, uniform int out[], int k) {
+    pixelColor = (1.0f / samplesPerPixel) * pixelColor;
+    pixelColor.x = linearToGamma(pixelColor.x); 
+    pixelColor.y = linearToGamma(pixelColor.y); 
+    pixelColor.z = linearToGamma(pixelColor.z); 
+    
+    float low = 0.000;
+    float high = 0.999;
+
+    int r = (int)(256 * clamp(pixelColor.x, low, high));
+    int g = (int)(256 * clamp(pixelColor.y, low, high));
+    int b = (int)(256 * clamp(pixelColor.z, low, high));
+
+    out[k] = r;
+    out[k + 1] = g;
+    out[k + 2] = b;
 }
 
 // ===============================================================================
@@ -126,7 +134,7 @@ Vec3 rayAt(const Ray& ray, float t) {
 // Hit Record 
 
 struct HitRecord {
-    Point3 p;
+    Vec3 p;
     Vec3 normal;
     float t;
     bool frontFace;
@@ -134,7 +142,7 @@ struct HitRecord {
 
 void setFaceNormal(HitRecord& rec, const Ray& r, const Vec3& outwardNormal) {
     rec.frontFace = dot(r.direction, outwardNormal) < 0;
-    rec.normal = rec.frontFace ? outwardNormal : -outwardNormal;
+    rec.normal = rec.frontFace ? outwardNormal : -1.0f * outwardNormal;
 }
 
 // ===============================================================================
@@ -142,7 +150,7 @@ void setFaceNormal(HitRecord& rec, const Ray& r, const Vec3& outwardNormal) {
 // Sphere Hittable
 
 export struct Sphere {
-    Point3 center;
+    Vec3 center;
     float radius;
 };
 
@@ -237,8 +245,8 @@ export struct Camera {
     uniform int samplesPerPixel; // Count of random samples for each pixel
     uniform int maxDepth; // Maximum number of ray bounces into scene
     uniform int imageHeight;   // Rendered image height
-    uniform Point3 center;      // Camera center
-    uniform Point3 pixel00Location; // Location of pixel (0,0)
+    uniform Vec3 center;      // Camera center
+    uniform Vec3 pixel00Location; // Location of pixel (0,0)
     uniform Vec3 pixelDeltaU; // Offset to pixel to the right
     uniform Vec3 pixelDeltaV; // Offset to pixel below
 };
@@ -247,7 +255,7 @@ export void initialize(uniform Camera& cam) {
     cam.imageHeight = (int)(cam.imageWidth / cam.aspectRatio);
     cam.imageHeight = (cam.imageHeight < 1) ? 1 : cam.imageHeight;
 
-    uniform Point3 origin = {0.0f, 0.0f, 0.0f};
+    uniform Vec3 origin = {0.0f, 0.0f, 0.0f};
     cam.center = origin;
 
     // Determine viewport dimensions.
@@ -267,15 +275,7 @@ export void initialize(uniform Camera& cam) {
     // Calculate the location of the upper left pixel.
     uniform Vec3 focalLengthOffset = {0.0f, 0.0f, focalLength};
     uniform Vec3 viewportUpperLeft = cam.center - focalLengthOffset - (viewportU / 2.0f) - (viewportV / 2.0f);
-    uniform Point3 pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
-    
-    print("viewPortU: % % %\n", viewportU.x, viewportU.y, viewportU.z);
-    print("viewPortV: % % %\n", viewportV.x, viewportV.y, viewportV.z);
-    print("pixelDeltaU: % % %\n", cam.pixelDeltaU.x, cam.pixelDeltaU.y, cam.pixelDeltaU.z);
-    print("pixelDeltaV: % % %\n", cam.pixelDeltaV.x, cam.pixelDeltaV.y, cam.pixelDeltaV.z);
-    print("viewportUpperLeft: % % %\n", viewportUpperLeft.x, viewportUpperLeft.y, viewportUpperLeft.z);
-    print("pixel00Location: % % %\n", pixel00Location.x, pixel00Location.y, pixel00Location.z);
-    
+    cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
 }
 
 Vec3 pixelSampleSquare(uniform Camera& cam) {
@@ -286,12 +286,11 @@ Vec3 pixelSampleSquare(uniform Camera& cam) {
 
 Ray getRay(uniform Camera& cam, int i, int j) {
     // Get a randomly sampled camera ray for the pixel at location i,j.
-    Point3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
-    Point3 pixelSample = pixelCenter + pixelSampleSquare(cam);
+    Vec3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
+    Vec3 pixelSample = pixelCenter + pixelSampleSquare(cam);
 
-    Point3 rayOrigin = cam.center;
-    Point3 rayDirection = pixelSample - rayOrigin;
-
+    Vec3 rayOrigin = cam.center;
+    Vec3 rayDirection = pixelSample - rayOrigin;
 
     Ray r;
     r.origin = rayOrigin;
@@ -300,29 +299,40 @@ Ray getRay(uniform Camera& cam, int i, int j) {
     return r;
 }
 
-Color rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
+Vec3 rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
     HitRecord rec;
-
-    Color colorOffset = {1.0f, 1.0f, 1.0f};
-    Color colorOffset2 = {0.5f, 0.7f, 1.0f};
     
+    Vec3 black = {0.0f, 0.0f, 0.0f};
+    if (depth <= 0) return black;
+
+    float minBound = 0.001f;
+    float maxBound = infinity;
+
+    if (hitSphereList(sphereList, numSpheres, r, minBound, maxBound, rec)) {
+        Vec3 direction = rec.normal + randomUnitVec();
+
+        Ray bouncedRay;
+        bouncedRay.origin = rec.p;
+        bouncedRay.direction = direction;
+
+        return 0.5f * rayColor(bouncedRay, depth - 1, sphereList, numSpheres);
+    }
+
     Vec3 unitDirection = unitVector(r.direction);
-    // print("dirX % dirY % dirZ %\n", unitDirection.x, unitDirection.y, unitDirection.z);
-    // print("rdirX % rdirY % rdirZ %\n", r.direction.x, r.direction.y, r.direction.z);
+    Vec3 white = {1.0f, 1.0f, 1.0f};
+    Vec3 blue = {0.5f, 0.7f, 1.0f};
     float a = 0.5f * (unitDirection.y + 1.0f);
-    return (1.0f - a) * colorOffset + a * colorOffset2;
+    return (1.0f - a) * white + a * blue;
 }
 
 export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
     foreach_tiled(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
-        Point3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
-        Vec3 rayDirection = pixelCenter - cam.center;
+        Vec3 pixelColor = {0.0f, 0.0, 0.0f};
+        for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
+            Ray r = getRay(cam, i, j);
+            pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
+        }
 
-        Ray r;
-        r.origin = cam.center;
-        r.direction = rayDirection;
-
-        Color pixelColor = rayColor(r, 0, sphereList, numSpheres);
         int k = (j * cam.imageWidth + i) * 3;
         writeColor(pixelColor, cam.samplesPerPixel, out, k);
     }
