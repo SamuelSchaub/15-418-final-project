@@ -41,6 +41,7 @@ private:
   void initialize() {
     image_height = static_cast<int>(image_width / aspect_ratio);
     image_height = (image_height < 1) ? 1 : image_height;
+    std::clog << "Image dimensions: " << image_width << "x" << image_height << std::endl;
 
     center = point3(0.0f, 0.0f, 0.0f);
 
