@@ -6,7 +6,7 @@
 
 class sphere : public hittable {
 public:
-    sphere(point3 _center, double _radius) : center(_center), radius(_radius) {}
+    sphere(point3 _center, float _radius) : center(_center), radius(_radius) {}
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
         vec3 oc = r.origin() - center;
@@ -36,7 +36,7 @@ public:
     }
 private:
   point3 center;
-  double radius;
+  float radius;
 };
 
 #endif //SPHERE_H

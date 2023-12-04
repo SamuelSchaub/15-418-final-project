@@ -3,21 +3,21 @@
 
 class interval {
 public:
-    double min, max;
+    float min, max;
 
     interval() : min(+infinity), max(-infinity) {} // Default interval is empty
 
-    interval(double _min, double _max) : min(_min), max(_max) {}
+    interval(float _min, float _max) : min(_min), max(_max) {}
 
-    bool contains(double x) const {
+    bool contains(float x) const {
         return min <= x && x <= max;
     }
 
-    bool surrounds(double x) const {
+    bool surrounds(float x) const {
         return min < x && x < max;
     }
 
-    double clamp(double x) const {
+    float clamp(float x) const {
         if (x < min) return min;
         if (x > max) return max;
         return x;
