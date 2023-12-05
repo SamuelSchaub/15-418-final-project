@@ -46,7 +46,6 @@ int main() {
 
     int* out = new int[camera.imageWidth * camera.imageHeight * 3];
 
-    std::cout << "Rendering image..." << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
     ispc::renderImage(camera, spheres, 2, out);
     auto end = std::chrono::high_resolution_clock::now();
