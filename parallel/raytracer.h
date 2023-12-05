@@ -83,10 +83,10 @@ extern "C" {
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderPixel(struct Camera &cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
+    extern void renderImage(struct Camera &cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
 #else
-    extern void renderPixel(struct Camera *cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
-#endif // renderPixel function declaraion
+    extern void renderImage(struct Camera *cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
+#endif // renderImage function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++20 -Wall -Wextra -Werror -O2 -fsanitize=address,undefined
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -fsanitize=address,undefined
 
 TARGET = parallel
 SOURCE = main.cpp
@@ -11,8 +11,8 @@ $(TARGET): $(SOURCE)
 clean:
 	rm -f $(TARGET):
 run:
-	rm -rf image.ppm
+	rm -f image.ppm
 	./$(TARGET)
 all:
 	ispc -o raytracer.o -h raytracer.h raytracer.ispc -O2 --target=neon-i32x8
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCE) raytracer.o
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCE) tasksys.cpp raytracer.o -lpthread -lm -L/opt/homebrew/opt/ispc/lib -lispcrt

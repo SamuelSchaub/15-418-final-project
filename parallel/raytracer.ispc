@@ -325,8 +325,26 @@ Vec3 rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], unifor
     return (1.0f - a) * white + a * blue;
 }
 
-export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
-    foreach_tiled(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
+
+// export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
+//     foreach_tiled(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
+//         Vec3 pixelColor = {0.0f, 0.0, 0.0f};
+//         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
+//             Ray r = getRay(cam, i, j);
+//             pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
+//         }
+
+//         int k = (j * cam.imageWidth + i) * 3;
+//         writeColor(pixelColor, cam.samplesPerPixel, out, k);
+//     }
+// }
+
+
+task void renderImageTile(uniform Camera& cam, uniform int rowsPerTask, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
+    uniform int ystart = taskIndex * rowsPerTask;
+    uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
+
+    foreach_tiled (j = ystart ... yend, i = 0 ... cam.imageWidth) {
         Vec3 pixelColor = {0.0f, 0.0, 0.0f};
         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
             Ray r = getRay(cam, i, j);
@@ -336,4 +354,15 @@ export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], 
         int k = (j * cam.imageWidth + i) * 3;
         writeColor(pixelColor, cam.samplesPerPixel, out, k);
     }
+}
+
+
+export void renderImage(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
+    uniform int threadCount = 8;
+    uniform int rowsPerTask = cam.imageHeight / threadCount;
+    if (cam.imageHeight % threadCount != 0) {
+        rowsPerTask++;
+    }
+
+    launch [threadCount] renderImageTile(cam, rowsPerTask, sphereList, numSpheres, out);
 }

@@ -1,4 +1,5 @@
 #include "raytracer.h"
+// #include "ispcrt.h"
 #include <iostream>
 #include <chrono>
 
@@ -20,7 +21,7 @@ void writePPMImage(int* data, int width, int height, const char *filename) {
 int main() {
     ispc::Camera camera;
     camera.aspectRatio = 16.0f / 9.0f;
-    camera.imageWidth = 3840;
+    camera.imageWidth = 400;
     camera.samplesPerPixel = 100;
     camera.maxDepth = 50;
     ispc::initialize(camera);
@@ -33,11 +34,11 @@ int main() {
     center1.v[2] = -1;
 
     spheres[0].center = center1;
-    spheres[0].radius = 0.5;
+    spheres[0].radius = 0.5f;
 
     ispc::float3 center2;
     center2.v[0] = 0;
-    center2.v[1] = -100.5;
+    center2.v[1] = -100.5f;
     center2.v[2] = -1;
 
     spheres[1].center = center2;
@@ -45,8 +46,9 @@ int main() {
 
     int* out = new int[camera.imageWidth * camera.imageHeight * 3];
 
+    std::cout << "Rendering image..." << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
-    ispc::renderPixel(camera, spheres, 2, out);
+    ispc::renderImage(camera, spheres, 2, out);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
