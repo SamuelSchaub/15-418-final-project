@@ -125,8 +125,8 @@ void writeColor(Vec3& pixelColor, int samplesPerPixel, uniform int out[], int k)
     pixelColor.y = linearToGamma(pixelColor.y); 
     pixelColor.z = linearToGamma(pixelColor.z); 
     
-    float low = 0.000;
-    float high = 0.999;
+    float low = 0.000f;
+    float high = 0.999f;
 
     int r = (int)(256 * clamp(pixelColor.x, low, high));
     int g = (int)(256 * clamp(pixelColor.y, low, high));
