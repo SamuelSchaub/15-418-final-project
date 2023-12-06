@@ -34,6 +34,17 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 #endif
 
 
+///////////////////////////////////////////////////////////////////////////
+// Enumerator types with external visibility from ispc code
+///////////////////////////////////////////////////////////////////////////
+
+#ifndef __ISPC_ENUM_HittableType__
+#define __ISPC_ENUM_HittableType__
+enum HittableType {
+    SPHERE = 0 
+};
+#endif
+
 
 #ifndef __ISPC_ALIGN__
 #if defined(__clang__) || !defined(_MSC_VER)
@@ -45,6 +56,14 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 #define __ISPC_ALIGN__(s) __declspec(align(s))
 #define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
 #endif
+#endif
+
+#ifndef __ISPC_STRUCT_Sphere__
+#define __ISPC_STRUCT_Sphere__
+struct Sphere {
+    struct float3  center;
+    float radius;
+};
 #endif
 
 #ifndef __ISPC_STRUCT_Camera__
@@ -62,11 +81,19 @@ struct Camera {
 };
 #endif
 
-#ifndef __ISPC_STRUCT_Sphere__
-#define __ISPC_STRUCT_Sphere__
-struct Sphere {
-    struct float3  center;
-    float radius;
+#ifndef __ISPC_STRUCT_HittableList__
+#define __ISPC_STRUCT_HittableList__
+struct HittableList {
+    int32_t numObjects;
+    struct Hittable * objects;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_Hittable__
+#define __ISPC_STRUCT_Hittable__
+struct Hittable {
+    enum HittableType type;
+    void * object;
 };
 #endif
 
@@ -78,14 +105,19 @@ struct Sphere {
 extern "C" {
 #endif // __cplusplus
 #if defined(__cplusplus)
+    extern void dummySphere(struct Sphere &sphere);
+#else
+    extern void dummySphere(struct Sphere *sphere);
+#endif // dummySphere function declaraion
+#if defined(__cplusplus)
     extern void initialize(struct Camera &cam);
 #else
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderImage(struct Camera &cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
+    extern void renderImage(struct Camera &cam, const struct HittableList &hittables, int32_t * out);
 #else
-    extern void renderImage(struct Camera *cam, const struct Sphere * sphereList, int32_t numSpheres, int32_t * out);
+    extern void renderImage(struct Camera *cam, const struct HittableList *hittables, int32_t * out);
 #endif // renderImage function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */

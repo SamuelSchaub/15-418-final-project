@@ -43,45 +43,67 @@ inline Vec3 unitVector(const Vec3& v) {
 
 // Random
 
-static uint64 seed = 42;
-uniform uint64 lcgA = 1103515245;
-uniform uint64 lcgC = 12345;
 
-float randomFloat() {
-    seed = lcgA * seed + lcgC;
-    float randFloat = (float)(seed >> 32) / (float)(0x100000000);
-    return randFloat;
+// From (https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm)
+uint32 randomSeedGenerator(uint32 x, uint32 y) {
+    uint32 v = x;
+    uint32 w = y;
+    uint32 s = 0;
+
+    uint32 k1 = 0xa341316c;
+    uint32 k2 = 0xc8013ea4;
+    uint32 k3 = 0xad90777d;
+    uint32 k4 = 0x7e95761e;
+
+    for (uint32 i = 0; i < 16; i++) {
+        s += 0x9e3779b9;
+        v += ((w << 4) + k1) ^ (w + s) ^ ((w >> 5) + k2);
+        w += ((v << 4) + k3) ^ (v + s) ^ ((v >> 5) + k4);
+    }
+
+    return v;
 }
 
-float randomFloat(float minVal, float maxVal) {
-    return minVal + (maxVal - minVal) * randomFloat();
+
+RNGState randomState(int x, int y) {
+    RNGState state;
+    seed_rng(&state, randomSeedGenerator(x, y));
+    return state;
+}
+
+float randomFloat(RNGState& state) {
+    return frandom(&state);
+}
+
+float randomFloat(RNGState& state, float minVal, float maxVal) {
+    return minVal + (maxVal - minVal) * randomFloat(state);
 }
 
 // Random vector functions
 
-Vec3 randomVec() {
-    Vec3 v = { randomFloat(), randomFloat(), randomFloat() };
+Vec3 randomVec(RNGState& state) {
+    Vec3 v = { randomFloat(state), randomFloat(state), randomFloat(state) };
     return v;
 }
 
-Vec3 randomVec(float minVal, float maxVal) {
-    Vec3 v = { randomFloat(minVal, maxVal), randomFloat(minVal, maxVal), randomFloat(minVal, maxVal) };
+Vec3 randomVec(RNGState& state, float minVal, float maxVal) {
+    Vec3 v = { randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal) };
     return v;
 }
 
-inline Vec3 randomVecInUnitSphere() {
+inline Vec3 randomVecInUnitSphere(RNGState& state) {
     while (true) {
-        Vec3 p = randomVec(-1, 1);
+        Vec3 p = randomVec(state, -1, 1);
         if (lengthSquared(p) < 1) return p;
     }
 }
 
-inline Vec3 randomUnitVec() {
-    return unitVector(randomVecInUnitSphere());
+inline Vec3 randomUnitVec(RNGState& state) {
+    return unitVector(randomVecInUnitSphere(state));
 }
 
-inline Vec3 randomVecOnHemisphere(Vec3& normal) {
-    Vec3 onUnitSphere = randomUnitVec();
+inline Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
+    Vec3 onUnitSphere = randomUnitVec(state);
     if (dot(onUnitSphere, normal) > 0.0) {
         return onUnitSphere;
     } else {
@@ -154,7 +176,8 @@ export struct Sphere {
     float radius;
 };
 
-bool hitSphere(const Sphere sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+
+bool hitSphere(Sphere sphere, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
     Vec3 oc = r.origin - sphere.center;
     float a = lengthSquared(r.direction);
     float halfB = dot(oc, r.direction);
@@ -179,61 +202,52 @@ bool hitSphere(const Sphere sphere, const Ray& r, float rayTmin, float rayTmax, 
     return true;
 }
 
-void freeSphere(const Sphere* sphere) {
-    delete[] sphere;
-}
 
 // ===============================================================================
 
 // Hittable
-
-typedef void* Hittable;
-
-enum HittableType {
+export enum HittableType {
     SPHERE
 };
+
+export struct Hittable {
+    HittableType type;
+    void* object;
+};
+
 
 // ===============================================================================
 
 // Hittable List
 
-struct HittableList {
-    Hittable* objects;
-    HittableType* objectTypes;
+export struct HittableList {
     int numObjects;
+    Hittable* objects;
 };
 
-// void clear(HittableList& hittableList) {
-//     for (int i = 0; i < hittableList.numObjects; i++) {
-//         uniform Hittable object = hittableList.objects[i];
-//         uniform HittableType hittableType = hittableList.objectTypes[i];
-//         switch (hittableType)
-//         {
-//             case SPHERE:
-//                 freeSphere((uniform const Sphere*)object);
-//                 break;
-        
-//             default:
-//                 break;
-//         }
-//     }
-// }
 
-bool hitSphereList(uniform const Sphere sphereList[], uniform int numSpheres, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
+bool hitHittableList(uniform const HittableList& hittables, const Ray& r, float rayTmin, float rayTmax, HitRecord& rec) {
     HitRecord tempRec;
     bool hitAnything = false;
     float closestSoFar = rayTmax;
     
-    for (int i = 0; i < numSpheres; i++) {
-        if (hitSphere(sphereList[i], r, rayTmin, closestSoFar, tempRec)) {
-            hitAnything = true;
-            closestSoFar = tempRec.t;
-            rec = tempRec;
+    for (int i = 0; i < hittables.numObjects; i++) {
+        switch (hittables.objects[i].type) {
+            case SPHERE:
+                Sphere* sphere = (Sphere*)(hittables.objects[i].object);
+                if (hitSphere(*sphere, r, rayTmin, closestSoFar, tempRec)) {
+                    hitAnything = true;
+                    closestSoFar = tempRec.t;
+                    rec = tempRec;
+                }
+                break;
+            default:
+                break;
         }
     }
-    
     return hitAnything;
 }
+
 
 // ===============================================================================
 
@@ -278,16 +292,16 @@ export void initialize(uniform Camera& cam) {
     cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
 }
 
-Vec3 pixelSampleSquare(uniform Camera& cam) {
-    float px = -0.5f + randomFloat();
-    float py = -0.5f + randomFloat();
+Vec3 pixelSampleSquare(RNGState& state, uniform Camera& cam) {
+    float px = -0.5f + randomFloat(state);
+    float py = -0.5f + randomFloat(state);
     return (px * cam.pixelDeltaU) + (py * cam.pixelDeltaV);
 }
 
-Ray getRay(uniform Camera& cam, int i, int j) {
+Ray getRay(RNGState& state, uniform Camera& cam, int i, int j) {
     // Get a randomly sampled camera ray for the pixel at location i,j.
     Vec3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
-    Vec3 pixelSample = pixelCenter + pixelSampleSquare(cam);
+    Vec3 pixelSample = pixelCenter + pixelSampleSquare(state, cam);
 
     Vec3 rayOrigin = cam.center;
     Vec3 rayDirection = pixelSample - rayOrigin;
@@ -299,23 +313,25 @@ Ray getRay(uniform Camera& cam, int i, int j) {
     return r;
 }
 
-Vec3 rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], uniform int numSpheres) {
+Vec3 rayColor(RNGState state, Ray& r, int depth, uniform const HittableList& hittables) {
     HitRecord rec;
     
     Vec3 black = {0.0f, 0.0f, 0.0f};
-    if (depth <= 0) return black;
+    if (depth <= 0) {
+        return black;
+    }
 
     float minBound = 0.001f;
     float maxBound = infinity;
-
-    if (hitSphereList(sphereList, numSpheres, r, minBound, maxBound, rec)) {
-        Vec3 direction = rec.normal + randomUnitVec();
+    
+    if (hitHittableList(hittables, r, minBound, maxBound, rec)) {
+        Vec3 direction = rec.normal + randomUnitVec(state);
 
         Ray bouncedRay;
         bouncedRay.origin = rec.p;
         bouncedRay.direction = direction;
 
-        return 0.5f * rayColor(bouncedRay, depth - 1, sphereList, numSpheres);
+        return 0.5f * rayColor(state, bouncedRay, depth - 1, hittables);
     }
 
     Vec3 unitDirection = unitVector(r.direction);
@@ -326,29 +342,16 @@ Vec3 rayColor(const Ray& r, int depth, uniform const Sphere sphereList[], unifor
 }
 
 
-// export void renderPixel(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
-//     foreach_tiled(j = 0 ... cam.imageHeight, i = 0 ... cam.imageWidth) {
-//         Vec3 pixelColor = {0.0f, 0.0, 0.0f};
-//         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
-//             Ray r = getRay(cam, i, j);
-//             pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
-//         }
-
-//         int k = (j * cam.imageWidth + i) * 3;
-//         writeColor(pixelColor, cam.samplesPerPixel, out, k);
-//     }
-// }
-
-
-task void renderImageTile(uniform Camera& cam, uniform int rowsPerTask, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
+task void renderImageTile(uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables, uniform int out[]) {
     uniform int ystart = taskIndex * rowsPerTask;
     uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
 
     foreach_tiled (j = ystart ... yend, i = 0 ... cam.imageWidth) {
-        Vec3 pixelColor = {0.0f, 0.0, 0.0f};
+        RNGState state = randomState(i, j);
+        Vec3 pixelColor = {0.0f, 0.0f, 0.0f};
         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
-            Ray r = getRay(cam, i, j);
-            pixelColor += rayColor(r, cam.maxDepth, sphereList, numSpheres);
+            Ray r = getRay(state, cam, i, j);
+            pixelColor += rayColor(state, r, cam.maxDepth, hittables);
         }
 
         int k = (j * cam.imageWidth + i) * 3;
@@ -357,12 +360,16 @@ task void renderImageTile(uniform Camera& cam, uniform int rowsPerTask, uniform 
 }
 
 
-export void renderImage(uniform Camera& cam, uniform const Sphere sphereList[], uniform int numSpheres, uniform int out[]) {
+export void renderImage(uniform Camera& cam, uniform const HittableList& hittables, uniform int out[]) {
     uniform int threadCount = 8;
     uniform int rowsPerTask = cam.imageHeight / threadCount;
-    if (cam.imageHeight % threadCount != 0) {
+    if (rowsPerTask * threadCount < cam.imageHeight) {
         rowsPerTask++;
     }
 
-    launch [threadCount] renderImageTile(cam, rowsPerTask, sphereList, numSpheres, out);
+    launch [threadCount] renderImageTile(cam, rowsPerTask, hittables, out);
+}
+
+export void dummySphere(uniform Sphere& sphere) {
+    return;
 }

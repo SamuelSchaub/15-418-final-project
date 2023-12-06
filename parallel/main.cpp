@@ -1,5 +1,4 @@
 #include "raytracer.h"
-// #include "ispcrt.h"
 #include <iostream>
 #include <chrono>
 
@@ -18,6 +17,7 @@ void writePPMImage(int* data, int width, int height, const char *filename) {
     printf("Done. \n");
 }
 
+
 int main() {
     ispc::Camera camera;
     camera.aspectRatio = 16.0f / 9.0f;
@@ -25,29 +25,46 @@ int main() {
     camera.samplesPerPixel = 100;
     camera.maxDepth = 50;
     ispc::initialize(camera);
-
-    ispc::Sphere spheres[2];
+    
+    ispc::Sphere* sphere1 = new ispc::Sphere;
     
     ispc::float3 center1;
     center1.v[0] = 0;
     center1.v[1] = 0;
     center1.v[2] = -1;
 
-    spheres[0].center = center1;
-    spheres[0].radius = 0.5f;
+    sphere1->center = center1;
+    sphere1->radius = 0.5f;
+
+    ispc::Sphere* sphere2 = new ispc::Sphere;
 
     ispc::float3 center2;
     center2.v[0] = 0;
     center2.v[1] = -100.5f;
     center2.v[2] = -1;
 
-    spheres[1].center = center2;
-    spheres[1].radius = 100;
+    sphere2->center = center2;
+    sphere2->radius = 100;
+
+    ispc::Hittable sphereHittable1; 
+    sphereHittable1.type = ispc::HittableType::SPHERE;
+    sphereHittable1.object = (void*)(sphere1);
+    
+    ispc::Hittable sphereHittable2;
+    sphereHittable2.type = ispc::HittableType::SPHERE;
+    sphereHittable2.object = (void*)(sphere2);
+
+    ispc::HittableList hl;
+
+    hl.objects = new ispc::Hittable[2];
+    hl.objects[0] = sphereHittable1;
+    hl.objects[1] = sphereHittable2;
+    hl.numObjects = 2;
 
     int* out = new int[camera.imageWidth * camera.imageHeight * 3];
 
     auto start = std::chrono::high_resolution_clock::now();
-    ispc::renderImage(camera, spheres, 2, out);
+    ispc::renderImage(camera, hl, out);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
@@ -56,5 +73,8 @@ int main() {
     writePPMImage(out, camera.imageWidth, camera.imageHeight, "image.ppm");
 
     delete[] out;
+    delete sphere1;
+    delete sphere2;
+    delete[] hl.objects;
     return 0;
 }
