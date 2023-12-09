@@ -3,14 +3,14 @@
 #include <chrono>
 
 
-void writePPMImage(int* r, int* g, int* b, int width, int height, const char *filename) {
+void writePPMImage(ispc::Image& image, int width, int height, const char *filename) {
     FILE *fp = fopen(filename, "wb");
 
     // write ppm header
     fprintf(fp, "P3\n%d %d\n255\n", width, height);
 
-    for (int i = 0; i < width * height; i += 1) {
-        fprintf(fp, "%d %d %d \n", r[i], g[i], b[i]);
+    for (int i = 0; i < width * height; i++) {
+        fprintf(fp, "%d %d %d \n", image.R[i], image.G[i], image.B[i]);
     }
 
     fclose(fp);
@@ -82,26 +82,33 @@ int main(int argc, char* argv[]) {
     ispc::HittableList* hittableList = createHittableList(objects);
 
     // int* out = new int[camera->imageWidth * camera->imageHeight * 3];
-    int* outR = new int[camera->imageWidth * camera->imageHeight];
-    int* outG = new int[camera->imageWidth * camera->imageHeight];
-    int* outB = new int[camera->imageWidth * camera->imageHeight];
+    ispc::Image image;
+    image.R = new int[camera->imageWidth * camera->imageHeight];
+    image.G = new int[camera->imageWidth * camera->imageHeight];
+    image.B = new int[camera->imageWidth * camera->imageHeight];
 
-    auto start = std::chrono::high_resolution_clock::now();
-    if (usePackets)
-        ispc::renderImageWithPackets(*camera, *hittableList, outR, outG, outB);
-    else
-        ispc::renderImage(*camera, *hittableList, outR, outG, outB);
-    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::steady_clock::time_point start;
+    std::chrono::steady_clock::time_point end;
+    // chrono::steady_clock::time_point duration;
+    if (usePackets) {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImageWithPackets(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    } else {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImage(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    }
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
 
-    writePPMImage(outR, outG, outB, camera->imageWidth, camera->imageHeight, "image.ppm");
+    writePPMImage(image, camera->imageWidth, camera->imageHeight, "image.ppm");
 
     // delete[] out;
-    delete[] outR;
-    delete[] outG;
-    delete[] outB;
+    delete[] image.R;
+    delete[] image.G;
+    delete[] image.B;
     delete camera;
     delete hittableList;
     return 0;

@@ -81,6 +81,15 @@ struct Camera {
 };
 #endif
 
+#ifndef __ISPC_STRUCT_Image__
+#define __ISPC_STRUCT_Image__
+struct Image {
+    int32_t * R;
+    int32_t * G;
+    int32_t * B;
+};
+#endif
+
 #ifndef __ISPC_STRUCT_HittableList__
 #define __ISPC_STRUCT_HittableList__
 struct HittableList {
@@ -115,10 +124,15 @@ extern "C" {
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderImage(struct Camera &cam, const struct HittableList &hittables, int32_t * outR, int32_t * outG, int32_t * outB);
+    extern void renderImage(struct Image &image, struct Camera &cam, const struct HittableList &hittables);
 #else
-    extern void renderImage(struct Camera *cam, const struct HittableList *hittables, int32_t * outR, int32_t * outG, int32_t * outB);
+    extern void renderImage(struct Image *image, struct Camera *cam, const struct HittableList *hittables);
 #endif // renderImage function declaraion
+#if defined(__cplusplus)
+    extern void renderImageWithPackets(struct Image &image, struct Camera &cam, const struct HittableList &hittables);
+#else
+    extern void renderImageWithPackets(struct Image *image, struct Camera *cam, const struct HittableList *hittables);
+#endif // renderImageWithPackets function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

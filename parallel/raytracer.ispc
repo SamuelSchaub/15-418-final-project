@@ -91,18 +91,18 @@ Vec3 randomVec(RNGState& state, float minVal, float maxVal) {
     return v;
 }
 
-inline Vec3 randomVecInUnitSphere(RNGState& state) {
+Vec3 randomVecInUnitSphere(RNGState& state) {
     while (true) {
         Vec3 p = randomVec(state, -1, 1);
         if (lengthSquared(p) < 1) return p;
     }
 }
 
-inline Vec3 randomUnitVec(RNGState& state) {
+Vec3 randomUnitVec(RNGState& state) {
     return unitVector(randomVecInUnitSphere(state));
 }
 
-inline Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
+Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
     Vec3 onUnitSphere = randomUnitVec(state);
     if (dot(onUnitSphere, normal) > 0.0) {
         return onUnitSphere;
@@ -113,53 +113,70 @@ inline Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
 
 // ===============================================================================
 
+// Image
+
+export struct Image {
+    uniform int* R;
+    uniform int* G;
+    uniform int* B;
+};
+
 // Color
 
 float linearToGamma(float linearComponenet) {
     return sqrt(linearComponenet);
 }
 
-void writeColor(Vec3& pixelColor, int samplesPerPixel, uniform int outR[], uniform int outG[], uniform int outB[], int k) {
-    pixelColor = (1.0f / samplesPerPixel) * pixelColor;
-    pixelColor.x = linearToGamma(pixelColor.x); 
-    pixelColor.y = linearToGamma(pixelColor.y); 
-    pixelColor.z = linearToGamma(pixelColor.z); 
-    
-    float low = 0.000f;
-    float high = 0.999f;
-
-    int r = (int)(256 * clamp(pixelColor.x, low, high));
-    int g = (int)(256 * clamp(pixelColor.y, low, high));
-    int b = (int)(256 * clamp(pixelColor.z, low, high));
-
-    outR[k] = r;
-    outG[k] = g;
-    outB[k] = b;
+uniform float linearToGamma(uniform float linearComponenet) {
+    return sqrt(linearComponenet);
 }
+
+// void writeColor(uniform Image& image, Vec3& pixelColor, int samplesPerPixel, int k) {
+//     pixelColor = (1.0f / samplesPerPixel) * pixelColor;
+//     pixelColor.x = linearToGamma(pixelColor.x); 
+//     pixelColor.y = linearToGamma(pixelColor.y); 
+//     pixelColor.z = linearToGamma(pixelColor.z); 
+    
+//     float low = 0.000f;
+//     float high = 0.999f;
+
+//     int r = (int)(256 * clamp(pixelColor.x, low, high));
+//     int g = (int)(256 * clamp(pixelColor.y, low, high));
+//     int b = (int)(256 * clamp(pixelColor.z, low, high));
+
+//     image.R[k] = r;
+//     image.G[k] = g;
+//     image.B[k] = b;
+// }
 
 // ===============================================================================
 
 // Ray
 
-struct Ray {
+export struct Ray {
     Vec3 origin;
     Vec3 direction;
 };
 
-typedef Ray* rayPtr;
+export struct RayPacket {
+    Ray* rays;
+    bool* active;
+};
+
+// typedef Ray* rayPtr;
 
 Vec3 rayAt(const Ray ray, float t) {
     return ray.origin + t * ray.direction;
 }
 
-bool anyActive(uniform bool* active, uniform int spp) {
-    bool localActive = false;
-    foreach (i = 0 ... spp) {
-        localActive |= active[i];
-    }
+// inline bool anyActive(uniform bool* active, inline  uniform int spp) {
+//     bool localActive = false;
+//     foreach (i = 0 ... spp) {
+//         localActive |= active[i];
+//     }
 
-    return any(localActive);
-}
+//     return any(localActive);
+// }
 
 
 // ===============================================================================
@@ -268,7 +285,7 @@ bool hitHittableList(uniform const HittableList& hittables, Ray r, float rayTmin
 
 // ===============================================================================
 
-// Camera (not done yet)
+// Camera
 
 export struct Camera {
     uniform float aspectRatio; // Ratio of image width over heigh
@@ -308,6 +325,9 @@ export void initialize(uniform Camera& cam) {
     uniform Vec3 viewportUpperLeft = cam.center - focalLengthOffset - (viewportU / 2.0f) - (viewportV / 2.0f);
     cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
 }
+
+
+// ===============================================================================
 
 Vec3 pixelSampleSquare(RNGState& state, uniform Camera& cam) {
     float px = -0.5f + randomFloat(state);
@@ -356,7 +376,7 @@ Vec3 rayColor(RNGState& state, Ray r, uniform int depth, uniform const HittableL
 }
 
 
-Vec3 rayPacketColor(RNGState& state, uniform Ray* rays, uniform bool* active, uniform int depth, uniform int spp, uniform const HittableList& hittables) {
+uniform Vec3 rayPacketColor(RNGState& state, uniform RayPacket& packet, uniform int depth, uniform int spp, uniform const HittableList& hittables) {
     uniform Vec3 white = {1.0f, 1.0f, 1.0f};
     uniform Vec3 blue = {0.5f, 0.7f, 1.0f};
 
@@ -365,41 +385,45 @@ Vec3 rayPacketColor(RNGState& state, uniform Ray* rays, uniform bool* active, un
     uniform float b = 0.0f;
 
     foreach (i = 0 ... spp) {
-        Vec3 localColor = {0.0f, 0.0f, 0.0f};
-        if (active[i]) {
+        bool isActive = packet.active[i];
+        if (isActive) {
+            Vec3 localColor = {0.0f, 0.0f, 0.0f};
             HitRecord rec;
             if (depth <= 0) {
-                active[i] = false;
-            } else if (hitHittableList(hittables, rays[i], 0.001f, infinity, rec)) {
-                rays[i].origin = rec.p;
-                rays[i].direction = rec.normal + randomUnitVec(state);
+                packet.active[i] = false;
+            } else if (hitHittableList(hittables, packet.rays[i], 0.001f, infinity, rec)) {
+                packet.rays[i].origin = rec.p;
+                packet.rays[i].direction = rec.normal + randomUnitVec(state);
             } else {
-                Vec3 unitDirection = unitVector(rays[i].direction);
+                Vec3 unitDirection = unitVector(packet.rays[i].direction);
                 float t = 0.5f * (unitDirection.y + 1.0f);
                 localColor += (1.0f - t) * white + t * blue;
-                active[i] = false; 
+                packet.active[i] = false; 
             }
+            r += reduce_add(localColor.x);
+            g += reduce_add(localColor.y);
+            b += reduce_add(localColor.z);
         }
-        r += reduce_add(localColor.x);
-        g += reduce_add(localColor.y);
-        b += reduce_add(localColor.z);
     }
 
-    Vec3 result = {r, g, b};
-    if (anyActive(active, spp)) {
-        result += 0.5f * rayPacketColor(state, rays, active, depth - 1, spp, hittables);
+    uniform Vec3 result = {r, g, b};
+
+    bool localActive = false;
+    foreach (i = 0 ... spp) {
+        bool isActive = packet.active[i];
+        localActive |= isActive;
+    }
+    uniform bool anyActive = any(localActive);
+
+    if (anyActive) {
+        result += 0.5f * rayPacketColor(state, packet, depth - 1, spp, hittables);
     }
 
     return result;
 }
 
 
-task void renderImageTile(uniform Camera& cam, 
-                            uniform int rowsPerTask, 
-                            uniform const HittableList& hittables, 
-                            uniform int outR[], 
-                            uniform int outG[], 
-                            uniform int outB[]) {
+task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables) {
     uniform int ystart = taskIndex * rowsPerTask;
     uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
 
@@ -412,8 +436,7 @@ task void renderImageTile(uniform Camera& cam,
         }
 
         int k = (j * cam.imageWidth + i);
-        // writeColor(pixelColor, cam.samplesPerPixel, outR, outG, outB, k);
-
+        // writeColor(image, pixelColor, cam.samplesPerPixel, k);
         pixelColor = (1.0f / cam.samplesPerPixel) * pixelColor;
         pixelColor.x = linearToGamma(pixelColor.x); 
         pixelColor.y = linearToGamma(pixelColor.y); 
@@ -426,66 +449,77 @@ task void renderImageTile(uniform Camera& cam,
         int g = (int)(256 * clamp(pixelColor.y, low, high));
         int b = (int)(256 * clamp(pixelColor.z, low, high));
 
-        outR[k] = r;
-        outG[k] = g;
-        outB[k] = b;
+        image.R[k] = r;
+        image.G[k] = g;
+        image.B[k] = b;
     }
 }
 
 
-export void renderImage(uniform Camera& cam, uniform const HittableList& hittables, uniform int outR[], uniform int outG[], uniform int outB[]) {
+export void renderImage(uniform Image& image, uniform Camera& cam, uniform const HittableList& hittables) {
     uniform int threadCount = 8;
     uniform int rowsPerTask = cam.imageHeight / threadCount;
     if (rowsPerTask * threadCount < cam.imageHeight) {
         rowsPerTask++;
     }
 
-    launch [threadCount] renderImageTile(cam, rowsPerTask, hittables, outR, outG, outB);
+    launch [threadCount] renderImageTile(image, cam, rowsPerTask, hittables);
 }
 
-// task void renderImageTileWithPackets(uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables, uniform int outR[], uniform int outG[], uniform int outB[]) {
-//     uniform int ystart = taskIndex * rowsPerTask;
-//     uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
+typedef soa<8> Ray soaRay;
 
-//     for (int j = ystart; j < yend; j++) {
-//         for (int i = 0; i < cam.imageWidth; i++) {
-//             RNGState state = randomState(i, j);
-//             uniform Ray* rays = new Ray[cam.samplesPerPixel];
-//             uniform bool* active = new bool[cam.samplesPerPixel];
-//             foreach (sample = 0 ... cam.samplesPerPixel) {
-//                 rays[sample] = getRay(state, cam, i, j);
-//                 active[sample] = true;
-//             }
+task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables) {
+    uniform int ystart = taskIndex * rowsPerTask;
+    uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
 
-//             Vec3 pixelColor = rayPacketColor(state, rays, active, cam.maxDepth, cam.samplesPerPixel, hittables);
-//             int k = (j * cam.imageWidth + i) * 3;
-//             // writeColor(pixelColor, cam.samplesPerPixel, outR, outG, outB, k);
-//             pixelColor = (1.0f / cam.samplesPerPixel) * pixelColor;
-//             pixelColor.x = linearToGamma(pixelColor.x); 
-//             pixelColor.y = linearToGamma(pixelColor.y); 
-//             pixelColor.z = linearToGamma(pixelColor.z); 
+    for (uniform int j = ystart; j < yend; j++) {
+        for (uniform int i = 0; i < cam.imageWidth; i++) {
+            RNGState state = randomState(i, j);
+
+            uniform RayPacket packet;
+
+            uniform soaRay * uniform rays = uniform new uniform soaRay[cam.samplesPerPixel];
+            uniform bool * uniform active = uniform new uniform bool[cam.samplesPerPixel];
+
+            packet.rays = rays;
+            packet.active = active;
+
+            foreach (sample = 0 ... cam.samplesPerPixel) {
+                packet.rays[sample] = getRay(state, cam, i, j);
+                packet.active[sample] = true;
+            }
+
+            uniform Vec3 pixelColor = rayPacketColor(state, packet, cam.maxDepth, cam.samplesPerPixel, hittables);
+
+            uniform int k = (j * cam.imageWidth + i);
+
+            // writeColor(image, pixelColor, cam.samplesPerPixel, k);
+            pixelColor = (1.0f / cam.samplesPerPixel) * pixelColor;
+            pixelColor.x = linearToGamma(pixelColor.x); 
+            pixelColor.y = linearToGamma(pixelColor.y); 
+            pixelColor.z = linearToGamma(pixelColor.z); 
             
-//             float low = 0.000f;
-//             float high = 0.999f;
+            uniform float low = 0.000f;
+            uniform float high = 0.999f;
 
-//             int r = (int)(256 * clamp(pixelColor.x, low, high));
-//             int g = (int)(256 * clamp(pixelColor.y, low, high));
-//             int b = (int)(256 * clamp(pixelColor.z, low, high));
+            uniform int r = (uniform int)(256 * clamp(pixelColor.x, low, high));
+            uniform int g = (uniform int)(256 * clamp(pixelColor.y, low, high));
+            uniform int b = (uniform int)(256 * clamp(pixelColor.z, low, high));
 
-//             outR[k] = r;
-//             outG[k] = g;
-//             outB[k] = b;
-//         }
-//     }
-// }
+            image.R[k] = r;
+            image.G[k] = g;
+            image.B[k] = b;
+        }
+    }
+}
 
 
-// export void renderImageWithPackets(uniform Camera& cam, uniform const HittableList& hittables, uniform int outR[], uniform int outG[], uniform int outB[]) {
-//     uniform int threadCount = 8;
-//     uniform int rowsPerTask = cam.imageHeight / threadCount;
-//     if (rowsPerTask * threadCount < cam.imageHeight) {
-//         rowsPerTask++;
-//     }
+export void renderImageWithPackets(uniform Image& image, uniform Camera& cam, uniform const HittableList& hittables) {
+    uniform int threadCount = 8;
+    uniform int rowsPerTask = cam.imageHeight / threadCount;
+    if (rowsPerTask * threadCount < cam.imageHeight) {
+        rowsPerTask++;
+    }
 
-//     launch [threadCount] renderImageTileWithPackets(cam, rowsPerTask, hittables, outR, outG, outB);
-// }
+    launch [threadCount] renderImageTileWithPackets(image, cam, rowsPerTask, hittables);
+}
