@@ -6,7 +6,7 @@
 
 class sphere : public hittable {
 public:
-    sphere(point3 _center, float _radius) : center(_center), radius(_radius) {
+    sphere(point3 _center, float _radius, shared_ptr<material> _material) : center(_center), radius(_radius), mat(_material) {
         auto rvec = vec3(radius, radius, radius);
         box = aabb(center - rvec, center + rvec);
     }
@@ -34,6 +34,7 @@ public:
         rec.p = r.at(rec.t);
         vec3 outward_normal = (rec.p - center) / radius;
         rec.set_face_normal(r, outward_normal);
+        rec.mat = mat;
 
         return true;
     }
@@ -42,6 +43,7 @@ public:
 private:
   point3 center;
   float radius;
+  shared_ptr<material> mat;
   aabb box;
 };
 
