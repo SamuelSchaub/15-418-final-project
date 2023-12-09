@@ -5,6 +5,8 @@
 #include "ray.h"
 #include "aabb.h"
 
+class material;
+
 class hit_record {
 public:
     point3 p;

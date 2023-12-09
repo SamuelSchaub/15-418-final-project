@@ -18,7 +18,8 @@ class lambertian : public material {
     lambertian(const color& a) : albedo(a) {}
 
     bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered) const override {
-        auto scatter_direction = rec.normal + random_unit_vector();
+        (void)r_in;
+        vec3 scatter_direction = rec.normal + random_unit_vector();
 
         if (scatter_direction.near_zero()) {
             scatter_direction = rec.normal;
@@ -31,7 +32,7 @@ class lambertian : public material {
 
     private:
     color albedo;
-}
+};
 
 class mirror : public material {
   public:
