@@ -115,9 +115,9 @@ extern "C" {
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderImage(struct Camera &cam, const struct HittableList &hittables, int32_t * out);
+    extern void renderImage(struct Camera &cam, const struct HittableList &hittables, int32_t * outR, int32_t * outG, int32_t * outB);
 #else
-    extern void renderImage(struct Camera *cam, const struct HittableList *hittables, int32_t * out);
+    extern void renderImage(struct Camera *cam, const struct HittableList *hittables, int32_t * outR, int32_t * outG, int32_t * outB);
 #endif // renderImage function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
