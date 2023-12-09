@@ -3,6 +3,7 @@
 
 #include "rtweekend.h"
 #include "ray.h"
+#include "aabb.h"
 
 class hit_record {
 public:
@@ -24,6 +25,7 @@ class hittable {
 public:
     virtual ~hittable() = default;
     virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
+    virtual aabb bound_box() const = 0;
 };
 
 #endif //HITTABLE_H

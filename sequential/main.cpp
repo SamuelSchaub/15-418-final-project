@@ -2,6 +2,7 @@
 #include "camera.h"
 #include "hittable_list.h"
 #include "sphere.h"
+#include "bvh.h"
 
 #include <chrono>
 
@@ -10,6 +11,8 @@ int main() {
 
   world.add(make_shared<sphere>(point3(0.0f, 0.0f, -1.0f), 0.5f));
   world.add(make_shared<sphere>(point3(0.0f, -100.5f, -1.0f), 100.0f));
+
+  world = hittable_list(make_shared<bvh_node>(world));
 
   camera cam;
 

@@ -6,7 +6,10 @@
 
 class sphere : public hittable {
 public:
-    sphere(point3 _center, float _radius) : center(_center), radius(_radius) {}
+    sphere(point3 _center, float _radius) : center(_center), radius(_radius) {
+        auto rvec = vec3(radius, radius, radius);
+        box = aabb(center - rvec, center + rvec);
+    }
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
         vec3 oc = r.origin() - center;
@@ -34,9 +37,12 @@ public:
 
         return true;
     }
+
+    aabb bound_box() const override { return box; }
 private:
   point3 center;
   float radius;
+  aabb box;
 };
 
 #endif //SPHERE_H
