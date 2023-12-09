@@ -11,6 +11,7 @@ $(TARGET): $(SOURCE)
 clean:
 	rm -f $(TARGET):
 run:
+	rm -f image.ppm
 	./$(TARGET) >> image.ppm
 all:
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SOURCE)
