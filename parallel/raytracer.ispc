@@ -492,6 +492,9 @@ task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, 
 
             uniform int k = (j * cam.imageWidth + i);
             writeColor(image, pixelColor, cam.samplesPerPixel, k);
+
+            delete[] rays;
+            delete[] active;
         }
     }
 }
