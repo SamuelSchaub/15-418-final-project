@@ -1,10 +1,9 @@
 #include "raytracer.h"
-#include <iostream>
 #include <chrono>
+#include <iostream>
 
-
-void writePPMImage(ispc::Image& image, int width, int height, const char *filename) {
-    FILE *fp = fopen(filename, "wb");
+void writePPMImage(ispc::Image& image, int width, int height, const char* filename) {
+    FILE* fp = fopen(filename, "wb");
 
     // write ppm header
     fprintf(fp, "P3\n%d %d\n255\n", width, height);
@@ -17,17 +16,20 @@ void writePPMImage(ispc::Image& image, int width, int height, const char *filena
     printf("Done. \n");
 }
 
-
-ispc::Camera* initializeCamera(int imageWidth, int samplesPerPixel, int maxDepth) {
+ispc::Camera* initializeCamera(int imageWidth, int samplesPerPixel, int maxDepth, float vfov,
+                               ispc::float3 lookfrom, ispc::float3 lookat, ispc::float3 vup) {
     ispc::Camera* camera = new ispc::Camera;
     camera->aspectRatio = 16.0f / 9.0f;
     camera->imageWidth = imageWidth;
     camera->samplesPerPixel = samplesPerPixel;
     camera->maxDepth = maxDepth;
+    camera->vfov = vfov;
+    camera->lookfrom = lookfrom;
+    camera->lookat = lookat;
+    camera->vup = vup;
     ispc::initialize(*camera);
     return camera;
 }
-
 
 ispc::Sphere* createSphere(ispc::float3 center, float radius, ispc::Material* material) {
     ispc::Sphere* sphere = new ispc::Sphere;
@@ -44,14 +46,12 @@ void createHittable(ispc::HittableType type, void* object, std::vector<ispc::Hit
     objects.emplace_back(*hittable);
 }
 
-
 ispc::HittableList* createHittableList(std::vector<ispc::Hittable>& objects) {
     ispc::HittableList* hittableList = new ispc::HittableList;
     hittableList->objects = objects.data();
     hittableList->numObjects = objects.size();
     return hittableList;
 }
-
 
 ispc::Material* createMaterial(ispc::MaterialType type, ispc::float3 albedo) {
     ispc::Material* material = new ispc::Material;
@@ -60,15 +60,16 @@ ispc::Material* createMaterial(ispc::MaterialType type, ispc::float3 albedo) {
     return material;
 }
 
-
 int main(int argc, char* argv[]) {
     bool usePackets;
     int imageWidth;
     int samplesPerPixel;
     int maxDepth;
+    float vfov;
 
-    if (argc != 5) {
-        std::cout << "Usage: " << argv[0] << " <image width> <samples per pixel> <max depth> <usePackets>" << std::endl;
+    if (argc != 6) {
+        std::cout << "Usage: " << argv[0]
+                  << " <image width> <samples per pixel> <max depth> <usePackets> <vfov>" << std::endl;
         return 1;
     }
 
@@ -76,15 +77,26 @@ int main(int argc, char* argv[]) {
     samplesPerPixel = atoi(argv[2]);
     maxDepth = atoi(argv[3]);
     usePackets = atoi(argv[4]);
+    vfov = atoi(argv[5]);
 
-    ispc::Camera* camera = initializeCamera(imageWidth, samplesPerPixel, maxDepth);
+    auto lookfrom = ispc::float3{-2, 2, 1};
+    auto lookat = ispc::float3{0, 0, -1};
+    auto vup = ispc::float3{0, 1, 0};
 
-    ispc::Material* materialGround = createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.8f, 0.8f, 0.0f});
-    ispc::Material* materialCenter = createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.7f, 0.3f, 0.3f});
-    ispc::Material* materialLeft = createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.8f, 0.8f});
-    ispc::Material* materialRight = createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.6f, 0.2f});
-    
-    ispc::Sphere* sphere1 = createSphere(ispc::float3{0.0f, -100.5f, -1.0f}, 100.0f, materialGround);
+    ispc::Camera* camera =
+        initializeCamera(imageWidth, samplesPerPixel, maxDepth, vfov, lookfrom, lookat, vup);
+
+    ispc::Material* materialGround =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.8f, 0.8f, 0.0f});
+    ispc::Material* materialCenter =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.1f, 0.2f, 0.5f});
+    ispc::Material* materialLeft =
+        createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.8f, 0.8f});
+    ispc::Material* materialRight =
+        createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.6f, 0.2f});
+
+    ispc::Sphere* sphere1 =
+        createSphere(ispc::float3{0.0f, -100.5f, -1.0f}, 100.0f, materialGround);
     ispc::Sphere* sphere2 = createSphere(ispc::float3{0.0f, 0.0f, -1.0f}, 0.5f, materialCenter);
     ispc::Sphere* sphere3 = createSphere(ispc::float3{-1.0f, 0.0f, -1.0f}, 0.5f, materialLeft);
     ispc::Sphere* sphere4 = createSphere(ispc::float3{1.0f, 0.0f, -1.0f}, 0.5f, materialRight);

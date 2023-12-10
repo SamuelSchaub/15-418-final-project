@@ -90,11 +90,18 @@ struct Camera {
     int32_t imageWidth;
     int32_t samplesPerPixel;
     int32_t maxDepth;
+    float vfov;
+    struct float3  lookfrom;
+    struct float3  lookat;
+    struct float3  vup;
     int32_t imageHeight;
     struct float3  center;
     struct float3  pixel00Location;
     struct float3  pixelDeltaU;
     struct float3  pixelDeltaV;
+    struct float3  u;
+    struct float3  v;
+    struct float3  w;
 };
 #endif
 

@@ -1,14 +1,16 @@
 // Constants
 
-
-const float pi = 3.1415926535897932385f;
-const float infinity = 340282346638528859811704183484516925440.0f;
-
+const uniform float pi = 3.1415926535897932385f;
+const uniform float infinity = 340282346638528859811704183484516925440.0f;
 
 // Utility Functions
 
 
 inline float degreesToRadians(float degrees) {
+  return degrees * pi / 180.0f;
+}
+
+inline uniform float degreesToRadians(uniform float degrees) {
   return degrees * pi / 180.0f;
 }
 
@@ -23,11 +25,23 @@ inline float dot(const Vec3 u, const Vec3 v) {
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
+inline uniform float dot(uniform const Vec3 u, uniform const Vec3 v) {
+    return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
 inline float lengthSquared(const Vec3 v) {
     return dot(v, v);
 }
 
+inline uniform float lengthSquared(uniform const Vec3 v) {
+    return dot(v, v);
+}
+
 inline float length(const Vec3 v) {
+    return sqrt(lengthSquared(v));
+}
+
+inline uniform float length(uniform const Vec3 v) {
     return sqrt(lengthSquared(v));
 }
 
@@ -38,7 +52,18 @@ inline Vec3 cross(const Vec3 u, const Vec3 v) {
     return product;
 }
 
+inline uniform Vec3 cross(uniform const Vec3 u, uniform const Vec3 v) {
+    uniform Vec3 product = { u.y * v.z - u.z * v.y, 
+                             u.z * v.x - u.x * v.z,
+                             u.x * v.y - u.y * v.x };
+    return product;
+}
+
 inline Vec3 unitVector(const Vec3 v) {
+    return v / length(v);
+}
+
+inline uniform Vec3 unitVector(uniform const Vec3 v) {
     return v / length(v);
 }
 
@@ -194,8 +219,6 @@ export struct RayPacket {
     Ray* rays;
     bool* active;
 };
-
-// typedef Ray* rayPtr;
 
 Vec3 rayAt(const Ray ray, float t) {
     return ray.origin + t * ray.direction;
@@ -371,37 +394,49 @@ export struct Camera {
     uniform int imageWidth; // Rendered image width in pixel count
     uniform int samplesPerPixel; // Count of random samples for each pixel
     uniform int maxDepth; // Maximum number of ray bounces into scene
+    uniform float vfov;
+    uniform Vec3 lookfrom;
+    uniform Vec3 lookat;
+    uniform Vec3 vup;
     uniform int imageHeight;   // Rendered image height
     uniform Vec3 center;      // Camera center
     uniform Vec3 pixel00Location; // Location of pixel (0,0)
     uniform Vec3 pixelDeltaU; // Offset to pixel to the right
     uniform Vec3 pixelDeltaV; // Offset to pixel below
+    uniform Vec3 u;
+    uniform Vec3 v;
+    uniform Vec3 w;
 };
 
 export void initialize(uniform Camera& cam) {
     cam.imageHeight = (int)(cam.imageWidth / cam.aspectRatio);
     cam.imageHeight = (cam.imageHeight < 1) ? 1 : cam.imageHeight;
 
-    uniform Vec3 origin = {0.0f, 0.0f, 0.0f};
-    cam.center = origin;
+    cam.center = cam.lookfrom;
 
     // Determine viewport dimensions.
-    uniform float focalLength = 1.0f;
-    uniform float viewportHeight = 2.0f;
+    uniform float focalLength = length(cam.lookfrom - cam.lookat);
+    uniform float theta = degreesToRadians(cam.vfov);
+    uniform float h = tan(theta / 2);
+    uniform float viewportHeight = 2 * h * focalLength;
     uniform float viewportWidth = viewportHeight * (float)cam.imageWidth / (float)cam.imageHeight;
+    
+    // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+    cam.w = unitVector(cam.lookfrom - cam.lookat);
+    cam.u = unitVector(cross(cam.vup, cam.w));
+    cam.v = cross(cam.w, cam.u);
     
     // Calculate the vectors across the horizontal and down the vertical
     // viewport edges.
-    uniform Vec3 viewportU = {viewportWidth, 0.0f, 0.0f};
-    uniform Vec3 viewportV = {0.0f, -viewportHeight, 0.0f};
+    uniform Vec3 viewportU = viewportWidth * cam.u;
+    uniform Vec3 viewportV = viewportHeight * -cam.v;
 
     // Calculate the horizontal and vertical delta vectors from pixel to pixel.
     cam.pixelDeltaU = viewportU / (float)cam.imageWidth;
     cam.pixelDeltaV = viewportV / (float)cam.imageHeight;
 
     // Calculate the location of the upper left pixel.
-    uniform Vec3 focalLengthOffset = {0.0f, 0.0f, focalLength};
-    uniform Vec3 viewportUpperLeft = cam.center - focalLengthOffset - (viewportU / 2.0f) - (viewportV / 2.0f);
+    uniform Vec3 viewportUpperLeft = cam.center - (focalLength * cam.w) - viewportU/2 - viewportV/2;
     cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
 }
 
