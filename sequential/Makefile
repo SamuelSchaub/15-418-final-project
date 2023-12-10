@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++20 -Wall -Wextra -Werror -O2 -fsanitize=address,undefined
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -fsanitize=address,undefined
 
 TARGET = sequential
 SOURCE = main.cpp

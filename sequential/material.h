@@ -3,36 +3,39 @@
 
 #include "rtweekend.h"
 
-class hit_record;
+#include "hittable_list.h"
 
 class material {
-    public:
+  public:
     virtual ~material() = default;
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered) const = 0;
+    virtual bool scatter(
+        const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+    ) const = 0;
 };
 
-class lambertian : public material {
-    public:
 
+class lambertian : public material {
+  public:
     lambertian(const color& a) : albedo(a) {}
 
-    bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered) const override {
-        (void)r_in;
-        vec3 scatter_direction = rec.normal + random_unit_vector();
+    bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered)
+    const override {
+        auto scatter_direction = rec.normal + random_unit_vector();
 
-        if (scatter_direction.near_zero()) {
+        // Catch degenerate scatter direction
+        if (scatter_direction.near_zero())
             scatter_direction = rec.normal;
-        }
 
         scattered = ray(rec.p, scatter_direction);
         attenuation = albedo;
         return true;
     }
 
-    private:
+  private:
     color albedo;
 };
+
 
 class mirror : public material {
   public:
@@ -43,28 +46,30 @@ class mirror : public material {
         vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
         scattered = ray(rec.p, reflected);
         attenuation = albedo;
-        return true;
+        return dot(scattered.direction(), rec.normal) > 0.0f;
     }
 
   private:
     color albedo;
 };
 
-class glass : public material {
-    public:
 
+class glass : public material {
+  public:
     glass(float index_of_refraction) : ir(index_of_refraction) {}
 
-    bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered) const override {
+    bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered)
+    const override {
         attenuation = color(1.0, 1.0, 1.0);
-        double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
+        float refraction_ratio = rec.front_face ? (1.0/ir) : ir;
 
         vec3 unit_direction = unit_vector(r_in.direction());
-        double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
-        double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
+        float cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
+        float sin_theta = sqrt(1.0 - cos_theta*cos_theta);
 
         bool cannot_refract = refraction_ratio * sin_theta > 1.0;
         vec3 direction;
+
         if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_float())
             direction = reflect(unit_direction, rec.normal);
         else
@@ -74,14 +79,16 @@ class glass : public material {
         return true;
     }
 
-    private:
-    float ir;
+  private:
+    float ir; // Index of Refraction
 
     static float reflectance(float cosine, float ref_idx) {
+        // Use Schlick's approximation for reflectance.
         auto r0 = (1-ref_idx) / (1+ref_idx);
         r0 = r0*r0;
         return r0 + (1-r0)*pow((1 - cosine),5);
     }
 };
+
 
 #endif

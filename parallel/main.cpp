@@ -29,10 +29,11 @@ ispc::Camera* initializeCamera(int imageWidth, int samplesPerPixel, int maxDepth
 }
 
 
-ispc::Sphere* createSphere(ispc::float3 center, float radius) {
+ispc::Sphere* createSphere(ispc::float3 center, float radius, ispc::Material* material) {
     ispc::Sphere* sphere = new ispc::Sphere;
     sphere->center = center;
     sphere->radius = radius;
+    sphere->mat = *material;
     return sphere;
 }
 
@@ -49,6 +50,14 @@ ispc::HittableList* createHittableList(std::vector<ispc::Hittable>& objects) {
     hittableList->objects = objects.data();
     hittableList->numObjects = objects.size();
     return hittableList;
+}
+
+
+ispc::Material* createMaterial(ispc::MaterialType type, ispc::float3 albedo) {
+    ispc::Material* material = new ispc::Material;
+    material->type = type;
+    material->albedo = albedo;
+    return material;
 }
 
 
@@ -70,14 +79,22 @@ int main(int argc, char* argv[]) {
 
     ispc::Camera* camera = initializeCamera(imageWidth, samplesPerPixel, maxDepth);
 
+    ispc::Material* materialGround = createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.8f, 0.8f, 0.0f});
+    ispc::Material* materialCenter = createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.7f, 0.3f, 0.3f});
+    ispc::Material* materialLeft = createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.8f, 0.8f});
+    ispc::Material* materialRight = createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.8f, 0.6f, 0.2f});
     
-    ispc::Sphere* sphere1 = createSphere(ispc::float3{0.0f, 0.0f, -1.0f}, 0.5f);
-    ispc::Sphere* sphere2 = createSphere(ispc::float3{0.0f, -100.5f, -1.0f}, 100.0f);
+    ispc::Sphere* sphere1 = createSphere(ispc::float3{0.0f, -100.5f, -1.0f}, 100.0f, materialGround);
+    ispc::Sphere* sphere2 = createSphere(ispc::float3{0.0f, 0.0f, -1.0f}, 0.5f, materialCenter);
+    ispc::Sphere* sphere3 = createSphere(ispc::float3{-1.0f, 0.0f, -1.0f}, 0.5f, materialLeft);
+    ispc::Sphere* sphere4 = createSphere(ispc::float3{1.0f, 0.0f, -1.0f}, 0.5f, materialRight);
 
     std::vector<ispc::Hittable> objects = std::vector<ispc::Hittable>();
 
     createHittable(ispc::HittableType::SPHERE, (void*)sphere1, objects);
     createHittable(ispc::HittableType::SPHERE, (void*)sphere2, objects);
+    createHittable(ispc::HittableType::SPHERE, (void*)sphere3, objects);
+    createHittable(ispc::HittableType::SPHERE, (void*)sphere4, objects);
 
     ispc::HittableList* hittableList = createHittableList(objects);
 
