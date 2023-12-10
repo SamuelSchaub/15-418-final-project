@@ -38,6 +38,14 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 // Enumerator types with external visibility from ispc code
 ///////////////////////////////////////////////////////////////////////////
 
+#ifndef __ISPC_ENUM_MaterialType__
+#define __ISPC_ENUM_MaterialType__
+enum MaterialType {
+    LAMBERTIAN = 0,
+    MIRROR = 1 
+};
+#endif
+
 #ifndef __ISPC_ENUM_HittableType__
 #define __ISPC_ENUM_HittableType__
 enum HittableType {
@@ -58,10 +66,19 @@ enum HittableType {
 #endif
 #endif
 
+#ifndef __ISPC_STRUCT_Material__
+#define __ISPC_STRUCT_Material__
+struct Material {
+    enum MaterialType type;
+    struct float3  albedo;
+};
+#endif
+
 #ifndef __ISPC_STRUCT_Sphere__
 #define __ISPC_STRUCT_Sphere__
 struct Sphere {
     struct float3  center;
+    struct Material mat;
     float radius;
 };
 #endif

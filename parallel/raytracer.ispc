@@ -42,6 +42,16 @@ inline Vec3 unitVector(const Vec3 v) {
     return v / length(v);
 }
 
+inline Vec3 reflect(const Vec3 v, const Vec3 n) {
+    return v - 2 * dot(v, n) * n;
+}
+
+
+bool nearZero(const Vec3 v) {
+    const float s = 1e-8f;
+    return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
+}
+
 
 // Random
 
@@ -201,10 +211,25 @@ inline bool anyActive(uniform RayPacket& packet, uniform int spp) {
 }
 
 
+// Material
+
+export enum MaterialType {
+    LAMBERTIAN,
+    MIRROR,
+};
+
+
+export struct Material {
+    MaterialType type;
+    Vec3 albedo;
+};
+
+
 // Hit Record 
 
 
 struct HitRecord {
+    Material mat;
     Vec3 p;
     Vec3 normal;
     float t;
@@ -222,6 +247,7 @@ void setFaceNormal(HitRecord& rec, const Ray r, const Vec3& outwardNormal) {
 
 export struct Sphere {
     Vec3 center;
+    Material mat;
     float radius;
 };
 
@@ -252,9 +278,44 @@ bool hitSphere(Sphere sphere, const Ray r, float rayTmin, float rayTmax, HitReco
     
     rec.t = root;
     rec.p = rayAt(r, rec.t);
+    rec.mat = sphere.mat;
     Vec3 outwardNormal = (rec.p - sphere.center) / sphere.radius;
     setFaceNormal(rec, r, outwardNormal);
     return true;
+}
+
+
+
+bool lambertianScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+    Vec3 scatterDirection = rec.normal + randomUnitVec(state);
+    if (nearZero(scattered.direction)) {
+        scattered.direction = rec.normal;
+    }
+    Ray newRay = {rec.p, scatterDirection};
+    scattered = newRay;
+    attenuation = rec.mat.albedo;
+    return true;
+}
+
+
+bool mirrorScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+    Vec3 reflected = reflect(unitVector(rIn.direction), rec.normal);
+    Ray newRay = {rec.p, reflected};
+    scattered = newRay;
+    attenuation = rec.mat.albedo;
+    return (dot(scattered.direction, rec.normal) > 0);
+}
+
+
+bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+    switch (rec.mat.type) {
+        case LAMBERTIAN:
+            return lambertianScatter(state, rIn, rec, attenuation, scattered);
+        case MIRROR:
+            return mirrorScatter(state, rIn, rec, attenuation, scattered);
+        default:
+            return false;
+    }
 }
 
 
@@ -278,7 +339,6 @@ export struct HittableList {
     int numObjects;
     Hittable* objects;
 };
-
 
 bool hitHittableList(uniform const HittableList& hittables, Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
     HitRecord tempRec;
@@ -377,15 +437,15 @@ Vec3 rayColor(RNGState& state, Ray r, uniform int depth, uniform const HittableL
     if (depth <= 0) {
         return black;
     }
-
-    float minBound = 0.001f;
-    float maxBound = infinity;
     
-    if (hitHittableList(hittables, r, minBound, maxBound, rec)) {
-        r.origin = rec.p;
-        r.direction = rec.normal + randomUnitVec(state);
+    if (hitHittableList(hittables, r, 0.001f, infinity, rec)) {
+        Ray scattered;
+        Vec3 attenuation;
+        if (scatter(state, r, rec, attenuation, scattered)) {
+            return attenuation * rayColor(state, scattered, depth - 1, hittables);
+        }
 
-        return 0.5f * rayColor(state, r, depth - 1, hittables);
+        return black;
     }
 
     Vec3 unitDirection = unitVector(r.direction);
