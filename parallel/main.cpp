@@ -509,13 +509,16 @@ void randomSpheres(int argc, char* argv[]) {
      
     ispc::Material* material1 = createMaterial(ispc::MaterialType::GLASS, ispc::float3{1.0f, 1.0f, 1.0f});
     ispc::Sphere* sphere1 = createSphere(ispc::float3{0.0f, 1.0f, 0.0f}, 1.0f, material1);
+    createHittable(ispc::HittableType::SPHERE, (void*)sphere1, objects);
     
 
     ispc::Material* material2 = createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.4f, 0.2f, 0.1f});
     ispc::Sphere* sphere2 = createSphere(ispc::float3{-4.0f, 1.0f, 0.0f}, 1.0f, material2);
+    createHittable(ispc::HittableType::SPHERE, (void*)sphere2, objects);
 
     ispc::Material* material3 = createMaterial(ispc::MaterialType::MIRROR, ispc::float3{0.7f, 0.6f, 0.5f});
     ispc::Sphere* sphere3 = createSphere(ispc::float3{4.0f, 1.0f, 0.0f}, 1.0f, material3);
+    createHittable(ispc::HittableType::SPHERE, (void*)sphere3, objects);
     
     // Add bvh
     ispc::Hittable* root = createBVH(objects);

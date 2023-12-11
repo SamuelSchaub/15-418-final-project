@@ -542,7 +542,7 @@ bool glassScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenua
     return true;
 }
 
-Vec3 emitted(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+Vec3 emitted(RNGState& state, Ray rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     
     switch (rec.mat.type)
     {
@@ -557,7 +557,7 @@ Vec3 emitted(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation,
 }
 
 
-bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+bool scatter(RNGState& state, Ray rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     switch (rec.mat.type) {
         case LAMBERTIAN:
             return lambertianScatter(state, rIn, rec, attenuation, scattered);
@@ -746,7 +746,7 @@ Ray getRay(RNGState& state, uniform Camera& cam, int i, int j) {
     return r;
 }
 
-Vec3 rayColor(uniform Camera& cam, RNGState& state, Ray r, uniform int depth, uniform const HittableList& hittables) {
+Vec3 rayColor(uniform Vec3& background, RNGState& state, Ray r, uniform int depth, uniform const HittableList& hittables) {
     HitRecord rec;
     
     Vec3 black = {0.0f, 0.0f, 0.0f};
@@ -759,7 +759,7 @@ Vec3 rayColor(uniform Camera& cam, RNGState& state, Ray r, uniform int depth, un
     
     interval range = {min, max};
     if (!hitHittableList(hittables, r, range, rec)) {
-        return cam.background;
+        return background;
     }
     
     Ray scattered;
@@ -770,53 +770,54 @@ Vec3 rayColor(uniform Camera& cam, RNGState& state, Ray r, uniform int depth, un
         return emitted;
     }
     
-    return emitted + attenuation * rayColor(cam, state, scattered, depth - 1, hittables);
+    return emitted + attenuation * rayColor(background, state, scattered, depth - 1, hittables);
 }
 
+Vec3 reduceAddColor(Vec3& localColor, uniform Vec3& globalColor) {
+    globalColor.x += reduce_add(localColor.x);
+    globalColor.y += reduce_add(localColor.y);
+    globalColor.z += reduce_add(localColor.z);
+}
 
-uniform Vec3 rayPacketColor(RNGState& state, uniform RayPacket& packet, uniform int depth, uniform int spp, uniform const HittableList& hittables) {
-    uniform Vec3 white = {1.0f, 1.0f, 1.0f};
-    uniform Vec3 blue = {0.5f, 0.7f, 1.0f};
-
-    uniform float r = 0.0f;
-    uniform float g = 0.0f;
-    uniform float b = 0.0f;
+uniform Vec3 rayPacketColor(RNGState& state, uniform Vec3& background, uniform RayPacket& packet, uniform int maxDepth, uniform int spp, uniform const HittableList& hittables) {
+    uniform Vec3 globalColor = {0.0f, 0.0f, 0.0f};
     
     interval range = {0.001f, infinity};
-
     foreach (i = 0 ... spp) {
-        bool isActive = packet.active[i];
-        if (isActive) {
-            Vec3 localColor = {0.0f, 0.0f, 0.0f};
-            HitRecord rec;
+        Vec3 localRayColor = {1.0f, 1.0f, 1.0f};
+        Vec3 lightReceived = {0.0f, 0.0f, 0.0f};
+        for (int currDepth = 0; currDepth < maxDepth; currDepth++) {
+            if (packet.active[i]) {
+                HitRecord rec;
+                Vec3 attenuation;
 
-            float min = 0.001f;
-            float max = infinity;
+                Ray r = packet.rays[i];
 
-            if (depth <= 0) {
-                packet.active[i] = false;
-            } else if (hitHittableList(hittables, packet.rays[i], range, rec)) {
-                packet.rays[i].origin = rec.p;
-                packet.rays[i].direction = rec.normal + randomUnitVec(state);
-            } else {
-                Vec3 unitDirection = unitVector(packet.rays[i].direction);
-                float t = 0.5f * (unitDirection.y + 1.0f);
-                localColor += (1.0f - t) * white + t * blue;
-                packet.active[i] = false; 
+                Ray scattered;
+                scattered.origin = r.origin;
+                scattered.direction = r.direction;
+
+                bool didHit = hitHittableList(hittables, r, range, rec);
+                if (didHit) {
+                    lightReceived += emitted(state, r, rec, attenuation, scattered) * localRayColor;
+                } else {
+                    lightReceived += background * localRayColor;
+                    packet.active[i] = false;
+                }
+                
+                if (didHit && scatter(state, r, rec, attenuation, scattered)) {
+                    localRayColor *= attenuation;
+                } else {
+                    packet.active[i] = false;
+                }
+                
+                packet.rays[i] = scattered;
             }
-            r += reduce_add(localColor.x);
-            g += reduce_add(localColor.y);
-            b += reduce_add(localColor.z);
         }
+        reduceAddColor(lightReceived, globalColor);
     }
 
-    uniform Vec3 result = {r, g, b};
-
-    if (anyActive(packet, spp)) {
-        result += 0.5f * rayPacketColor(state, packet, depth - 1, spp, hittables);
-    }
-
-    return result;
+    return globalColor;
 }
 
 
@@ -829,7 +830,7 @@ task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int
         Vec3 pixelColor = {0.0f, 0.0f, 0.0f};
         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
             Ray r = getRay(state, cam, i, j);
-            pixelColor += rayColor(cam, state, r, cam.maxDepth, hittables);
+            pixelColor += rayColor(cam.background, state, r, cam.maxDepth, hittables);
         }
 
         int k = (j * cam.imageWidth + i);
@@ -872,7 +873,7 @@ task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, 
                 packet.active[sample] = true;
             }
 
-            uniform Vec3 pixelColor = rayPacketColor(state, packet, cam.maxDepth, cam.samplesPerPixel, hittables);
+            uniform Vec3 pixelColor = rayPacketColor(state, cam.background, packet, cam.maxDepth, cam.samplesPerPixel, hittables);
 
             uniform int k = (j * cam.imageWidth + i);
             writeColor(image, pixelColor, cam.samplesPerPixel, k);
