@@ -42,7 +42,8 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 #define __ISPC_ENUM_HittableType__
 enum HittableType {
     SPHERE = 0,
-    BVH_NODE = 1 
+    QUAD = 1,
+    BVH_NODE = 2 
 };
 #endif
 
@@ -53,13 +54,6 @@ enum MaterialType {
     MIRROR = 1,
     GLASS = 2,
     DIFFUSE_LIGHT = 3 
-};
-#endif
-
-#ifndef __ISPC_ENUM_HittableType__
-#define __ISPC_ENUM_HittableType__
-enum HittableType {
-    SPHERE = 0 
 };
 #endif
 
@@ -128,6 +122,7 @@ struct Quad {
     struct float3  normal;
     float D;
     struct float3  w;
+    struct aabb bbox;
 };
 #endif
 
@@ -189,6 +184,16 @@ struct HittableList {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
+#if defined(__cplusplus)
+    extern void dummyBVHNode(struct BVH_Node &node);
+#else
+    extern void dummyBVHNode(struct BVH_Node *node);
+#endif // dummyBVHNode function declaraion
+#if defined(__cplusplus)
+    extern void dummyQuad(struct Quad &quad);
+#else
+    extern void dummyQuad(struct Quad *quad);
+#endif // dummyQuad function declaraion
 #if defined(__cplusplus)
     extern void dummySphere(struct Sphere &sphere);
 #else

@@ -434,6 +434,7 @@ export struct Quad {
     Vec3 normal;
     float D;
     Vec3 w;
+    aabb bbox;
 };
 
 // ispc compiler bug
@@ -455,7 +456,7 @@ bool isInterior(float a, float b, HitRecord& rec) {
     return true;
 }
 
-bool hitQuad(Quad quad, const Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
+bool hitQuad(Quad quad, const Ray r, interval ray_t, HitRecord& rec) {
 
     float denom = dot(quad.normal, r.direction);
 
@@ -467,10 +468,10 @@ bool hitQuad(Quad quad, const Ray r, float rayTmin, float rayTmax, HitRecord& re
     
     // Return false if the hit point parameter t is outside the ray interval.
     float t = (quad.D - dot(quad.normal, r.origin)) / denom;
-    if (!(rayTmin <= t && t <= rayTmax)) {
+    if (!(contains(ray_t, t))) {
         return false;
     }
-    
+
     Vec3 intersection = rayAt(r, t);
     Vec3 planarHitptVector = intersection - quad.Q;
     float alpha = dot(quad.w, cross(planarHitptVector, quad.v));
@@ -487,9 +488,6 @@ bool hitQuad(Quad quad, const Ray r, float rayTmin, float rayTmax, HitRecord& re
 
     return true;
 }
-
-
-
 
 bool lambertianScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     Vec3 scatterDirection = rec.normal + randomUnitVec(state);
@@ -632,7 +630,12 @@ bool hitHittable(uniform Hittable& hittable, Ray r, interval ray_t, HitRecord& r
             uniform BVH_Node *uniform node = (uniform BVH_Node *uniform)(hittable.object);
             uniform BVH_Node& nodeRef = *node;
             return hitBVHNode(nodeRef, r, ray_t, rec);
+        case QUAD:
+            Quad* quad = (Quad*)(hittable.object);
+            interval range = {ray_t.min, ray_t.max};
+            return hitQuad(*quad, r, range, rec);
         default:
+            return false;
             break;
     }
 }
@@ -648,17 +651,15 @@ export struct HittableList {
 };
 
 bool hitHittableList(const uniform HittableList& hittables, Ray r, interval ray_t, HitRecord& rec) {
-    HitRecord tempRec;
     bool hitAnything = false;
     float closestSoFar = ray_t.max;
     
     for (uniform int i = 0; i < hittables.numObjects; i++) {
         interval range = {ray_t.min, closestSoFar};
         uniform Hittable& hittable = *hittables.objects[i];
-        if (hitHittable(hittable, r, range, tempRec)) {
+        if (hitHittable(hittable, r, range, rec)) {
             hitAnything = true; 
-            closestSoFar = tempRec.t;
-            rec = tempRec;
+            closestSoFar = rec.t;
         }
     }
     return hitAnything;
