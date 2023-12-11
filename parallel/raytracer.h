@@ -38,6 +38,14 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 // Enumerator types with external visibility from ispc code
 ///////////////////////////////////////////////////////////////////////////
 
+#ifndef __ISPC_ENUM_HittableType__
+#define __ISPC_ENUM_HittableType__
+enum HittableType {
+    SPHERE = 0,
+    BVH_NODE = 1 
+};
+#endif
+
 #ifndef __ISPC_ENUM_MaterialType__
 #define __ISPC_ENUM_MaterialType__
 enum MaterialType {
@@ -51,8 +59,7 @@ enum MaterialType {
 #ifndef __ISPC_ENUM_HittableType__
 #define __ISPC_ENUM_HittableType__
 enum HittableType {
-    SPHERE = 0,
-    QUAD = 1 
+    SPHERE = 0 
 };
 #endif
 
@@ -67,6 +74,40 @@ enum HittableType {
 #define __ISPC_ALIGN__(s) __declspec(align(s))
 #define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
 #endif
+#endif
+
+#ifndef __ISPC_STRUCT_interval__
+#define __ISPC_STRUCT_interval__
+struct interval {
+    float min;
+    float max;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_aabb__
+#define __ISPC_STRUCT_aabb__
+struct aabb {
+    struct interval x;
+    struct interval y;
+    struct interval z;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_BVH_Node__
+#define __ISPC_STRUCT_BVH_Node__
+struct BVH_Node {
+    struct aabb bbox;
+    struct Hittable * left;
+    struct Hittable * right;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_Hittable__
+#define __ISPC_STRUCT_Hittable__
+struct Hittable {
+    enum HittableType type;
+    void * object;
+};
 #endif
 
 #ifndef __ISPC_STRUCT_Material__
@@ -95,6 +136,7 @@ struct Quad {
 struct Sphere {
     struct float3  center;
     struct Material mat;
+    struct aabb bbox;
     float radius;
 };
 #endif
@@ -134,16 +176,9 @@ struct Image {
 #ifndef __ISPC_STRUCT_HittableList__
 #define __ISPC_STRUCT_HittableList__
 struct HittableList {
+    struct Hittable *  * objects;
+    struct aabb bbox;
     int32_t numObjects;
-    struct Hittable * objects;
-};
-#endif
-
-#ifndef __ISPC_STRUCT_Hittable__
-#define __ISPC_STRUCT_Hittable__
-struct Hittable {
-    enum HittableType type;
-    void * object;
 };
 #endif
 
@@ -154,11 +189,6 @@ struct Hittable {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-#if defined(__cplusplus)
-    extern void dummyQuad(struct Quad &quad);
-#else
-    extern void dummyQuad(struct Quad *quad);
-#endif // dummyQuad function declaraion
 #if defined(__cplusplus)
     extern void dummySphere(struct Sphere &sphere);
 #else

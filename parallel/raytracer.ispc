@@ -86,6 +86,138 @@ bool nearZero(const Vec3 v) {
 }
 
 
+export struct interval {
+    float min;
+    float max;
+};
+
+
+interval intervalUnion(interval& a, interval& b) {
+    interval result;
+    result.min = min(a.min, b.min);
+    result.max = max(a.max, b.max);
+    return result;
+}
+
+bool contains(interval& a, float x) {
+    return (a.min <= x) && (x <= a.max);
+}
+
+
+bool surrounds(interval& a, float x) {
+    return (a.min < x) && (x < a.max);
+}
+
+float size(interval& a) {
+    return a.max - a.min;
+}
+
+interval expand(interval& a , float delta) {
+    float paddding = delta / 2.0f;
+    interval result = {a.min - paddding, a.max + paddding};
+    return result;
+}
+
+
+
+// Ray
+
+
+export struct Ray {
+    Vec3 origin;
+    Vec3 direction;
+};
+
+export struct RayPacket {
+    Ray* rays;
+    bool* active;
+};
+
+Vec3 rayAt(const Ray ray, float t) {
+    return ray.origin + t * ray.direction;
+}
+
+inline bool anyActive(uniform RayPacket& packet, uniform int spp) {
+    bool localActive = false;
+    foreach (i = 0 ... spp) {
+        bool isActive = packet.active[i];
+        localActive |= isActive;
+    }
+    return any(localActive);
+}
+
+export struct aabb {
+    interval x;
+    interval y;
+    interval z;
+};
+
+aabb aabbFromPoints(Vec3& a, Vec3& b) {
+    aabb result;
+    interval x = {min(a.x, b.x), max(a.x, b.x)};
+    interval y = {min(a.y, b.y), max(a.y, b.y)};
+    interval z = {min(a.z, b.z), max(a.z, b.z)};
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return result;
+}
+
+aabb aabbFromAABBs(aabb& a, aabb& b) {
+    aabb result;
+    result.x = intervalUnion(a.x, b.x);
+    result.y = intervalUnion(a.y, b.y);
+    result.z = intervalUnion(a.z, b.z);
+    return result;
+}
+
+
+interval getAxis(uniform aabb& bbox, int axis) {
+    switch (axis) {
+        case 0:
+            return bbox.x;
+        case 1:
+            return bbox.y;
+        case 2:
+            return bbox.z;
+        default:
+            return bbox.x;
+    }
+}
+
+
+bool aabbHit(uniform aabb& bbox, Ray& r, interval ray_t) {
+    for (int a = 0; a < 3; a++) {
+        float invD = 1.0f / r.direction[a];
+        float orig = r.origin[a];
+
+        interval axis = getAxis(bbox, a);
+        float t0 = (axis.min - orig) * invD;
+        float t1 = (axis.max - orig) * invD;
+
+        if (invD < 0.0f) {
+            float temp = t0;
+            t0 = t1;
+            t1 = temp;
+        }
+
+        if (t0 > ray_t.min) {
+            ray_t.min = t0;
+        }
+
+        if (t1 < ray_t.max) {
+            ray_t.max = t1;
+        }
+
+        if (ray_t.max <= ray_t.min) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 // Random
 
 
@@ -215,33 +347,6 @@ inline void writeColor(uniform Image& image, uniform Vec3& pixelColor, uniform i
 }
 
 
-// Ray
-
-
-export struct Ray {
-    Vec3 origin;
-    Vec3 direction;
-};
-
-export struct RayPacket {
-    Ray* rays;
-    bool* active;
-};
-
-Vec3 rayAt(const Ray ray, float t) {
-    return ray.origin + t * ray.direction;
-}
-
-inline bool anyActive(uniform RayPacket& packet, uniform int spp) {
-    bool localActive = false;
-    foreach (i = 0 ... spp) {
-        bool isActive = packet.active[i];
-        localActive |= isActive;
-    }
-    return any(localActive);
-}
-
-
 // Material
 
 export enum MaterialType {
@@ -281,6 +386,7 @@ void setFaceNormal(HitRecord& rec, const Ray r, const Vec3& outwardNormal) {
 export struct Sphere {
     Vec3 center;
     Material mat;
+    aabb bbox;
     float radius;
 };
 
@@ -291,7 +397,7 @@ export void dummySphere(uniform Sphere& sphere) {
 }
 
 
-bool hitSphere(Sphere sphere, const Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
+bool hitSphere(Sphere sphere, const Ray r, interval ray_t, HitRecord& rec) {
     Vec3 oc = r.origin - sphere.center;
     float a = lengthSquared(r.direction);
     float halfB = dot(oc, r.direction);
@@ -302,9 +408,9 @@ bool hitSphere(Sphere sphere, const Ray r, float rayTmin, float rayTmax, HitReco
     float sqrtd = sqrt(discriminant);
     
     float root = (-halfB - sqrtd) / a;
-    if (!(rayTmin < root && root < rayTmax)) {
+    if (!(surrounds(ray_t, root))) {
         root = (-halfB + sqrtd) / a;
-        if (!(rayTmin < root && root < rayTmax)) {
+        if (!(surrounds(ray_t, root))) {
             return false;
         }
     }
@@ -469,12 +575,14 @@ bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation,
 }
 
 
+
 // Hittable
 
 
 export enum HittableType {
     SPHERE,
     QUAD,
+    BVH_NODE
 };
 
 export struct Hittable {
@@ -482,37 +590,75 @@ export struct Hittable {
     void* object;
 };
 
+export struct BVH_Node {
+    aabb bbox;
+    Hittable* left;
+    Hittable* right;
+};
+
+export void dummyBVHNode(uniform BVH_Node& node) {
+    return;
+}
+
+
+bool hitHittable(uniform Hittable& hittable, Ray r, interval ray_t, HitRecord& rec);
+
+bool hitBVHNode(uniform BVH_Node& node, Ray r, interval ray_t, HitRecord& rec) {
+    if (!aabbHit(node.bbox, r, ray_t)) {
+        return false;
+    }
+
+    uniform Hittable& left = *node.left;
+    bool hitLeft = hitHittable(left, r, ray_t, rec);
+
+    float newMax = hitLeft ? rec.t : ray_t.max;
+    interval newInterval = {ray_t.min, newMax};
+
+    uniform Hittable& right = *node.right;
+    bool hitRight = hitHittable(*node.right, r, newInterval, rec);
+
+    return hitLeft || hitRight;
+}
+
+
+
+bool hitHittable(uniform Hittable& hittable, Ray r, interval ray_t, HitRecord& rec) {
+    switch (hittable.type) {
+        case SPHERE:
+            Sphere* sphere = (Sphere*)(hittable.object);
+            return (hitSphere(*sphere, r, ray_t, rec));
+            break;
+        case BVH_NODE:
+            uniform BVH_Node *uniform node = (uniform BVH_Node *uniform)(hittable.object);
+            uniform BVH_Node& nodeRef = *node;
+            return hitBVHNode(nodeRef, r, ray_t, rec);
+        default:
+            break;
+    }
+}
+
 
 // Hittable List
 
 
 export struct HittableList {
+    Hittable** objects;
+    aabb bbox;
     int numObjects;
-    Hittable* objects;
 };
 
-bool hitHittableList(uniform const HittableList& hittables, Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
+bool hitHittableList(const uniform HittableList& hittables, Ray r, interval ray_t, HitRecord& rec) {
+    HitRecord tempRec;
     bool hitAnything = false;
-    float closestSoFar = rayTmax;
+    float closestSoFar = ray_t.max;
     
-    for (int i = 0; i < hittables.numObjects; i++) {
-        switch (hittables.objects[i].type) {
-            case SPHERE:
-                Sphere* sphere = (Sphere*)(hittables.objects[i].object);
-                if (hitSphere(*sphere, r, rayTmin, closestSoFar, rec)) {
-                    hitAnything = true;
-                    closestSoFar = rec.t;
-                }
-                break;
-            case QUAD:
-                Quad* quad = (Quad*)(hittables.objects[i].object);
-                if (hitQuad(*quad, r, rayTmin, closestSoFar, rec)) {
-                    hitAnything = true;
-                    closestSoFar = rec.t;
-                }
-                break;
-            default:
-                break;
+    for (uniform int i = 0; i < hittables.numObjects; i++) {
+        interval range = {ray_t.min, closestSoFar};
+        uniform Hittable& hittable = *hittables.objects[i];
+        if (hitHittable(hittable, r, range, tempRec)) {
+            hitAnything = true; 
+            closestSoFar = tempRec.t;
+            rec = tempRec;
         }
     }
     return hitAnything;
@@ -610,7 +756,8 @@ Vec3 rayColor(uniform Camera& cam, RNGState& state, Ray r, uniform int depth, un
     float min = 0.001f;
     float max = infinity;
     
-    if (!hitHittableList(hittables, r, min, max, rec)) {
+    interval range = {min, max};
+    if (!hitHittableList(hittables, r, range, rec)) {
         return cam.background;
     }
     
@@ -633,6 +780,8 @@ uniform Vec3 rayPacketColor(RNGState& state, uniform RayPacket& packet, uniform 
     uniform float r = 0.0f;
     uniform float g = 0.0f;
     uniform float b = 0.0f;
+    
+    interval range = {0.001f, infinity};
 
     foreach (i = 0 ... spp) {
         bool isActive = packet.active[i];
@@ -645,7 +794,7 @@ uniform Vec3 rayPacketColor(RNGState& state, uniform RayPacket& packet, uniform 
 
             if (depth <= 0) {
                 packet.active[i] = false;
-            } else if (hitHittableList(hittables, packet.rays[i], min, max, rec)) {
+            } else if (hitHittableList(hittables, packet.rays[i], range, rec)) {
                 packet.rays[i].origin = rec.p;
                 packet.rays[i].direction = rec.normal + randomUnitVec(state);
             } else {
