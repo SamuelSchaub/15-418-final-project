@@ -1,5 +1,6 @@
 // Constants
 
+
 const uniform float pi = 3.1415926535897932385f;
 const uniform float infinity = 340282346638528859811704183484516925440.0f;
 
@@ -69,6 +70,13 @@ inline uniform Vec3 unitVector(uniform const Vec3 v) {
 
 inline Vec3 reflect(const Vec3 v, const Vec3 n) {
     return v - 2 * dot(v, n) * n;
+}
+
+inline Vec3 refract(const Vec3 uv, const Vec3 n, float etaiOverEtat) {
+    float cosTheta = min(dot(-uv, n), 1.0);
+    Vec3 rOutPerp = etaiOverEtat * (uv + cosTheta * n);
+    Vec3 rOutParallel = -sqrt(abs(1.0 - lengthSquared(rOutPerp))) * n;
+    return rOutPerp + rOutParallel;
 }
 
 
@@ -239,6 +247,8 @@ inline bool anyActive(uniform RayPacket& packet, uniform int spp) {
 export enum MaterialType {
     LAMBERTIAN,
     MIRROR,
+    GLASS,
+    DIFFUSE_LIGHT,
 };
 
 
@@ -308,6 +318,72 @@ bool hitSphere(Sphere sphere, const Ray r, float rayTmin, float rayTmax, HitReco
 }
 
 
+// Quad Hittable
+
+export struct Quad {
+    Vec3 Q;
+    Vec3 u;
+    Vec3 v;
+    Material mat;
+    Vec3 normal;
+    float D;
+    Vec3 w;
+};
+
+// ispc compiler bug
+export void dummyQuad(uniform Quad& quad) {
+    return;
+}
+
+export void initQuad(uniform Quad& quad) {
+    uniform Vec3 n = cross(quad.u, quad.v);
+    quad.normal = unitVector(n);
+    quad.D = dot(quad.normal, quad.Q);
+    quad.w = n / dot(n, n);
+}
+
+bool isInterior(float a, float b, HitRecord& rec) {
+    if ((a < 0) || (1 < a) || (b < 0) || (1 < b)) {
+        return false;
+    }
+    return true;
+}
+
+bool hitQuad(Quad quad, const Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
+
+    float denom = dot(quad.normal, r.direction);
+
+    // No hit if the ray is parallel to the plane
+    float epsilon = 1e-8;
+    if (abs(denom) < epsilon) {
+        return false;
+    }
+    
+    // Return false if the hit point parameter t is outside the ray interval.
+    float t = (quad.D - dot(quad.normal, r.origin)) / denom;
+    if (!(rayTmin <= t && t <= rayTmax)) {
+        return false;
+    }
+    
+    Vec3 intersection = rayAt(r, t);
+    Vec3 planarHitptVector = intersection - quad.Q;
+    float alpha = dot(quad.w, cross(planarHitptVector, quad.v));
+    float beta = dot(quad.w, cross(quad.u, planarHitptVector));
+    
+    if (!isInterior(alpha, beta, rec)) {
+        return false;
+    }
+    
+    rec.t = t;
+    rec.p = intersection;
+    rec.mat = quad.mat;
+    setFaceNormal(rec, r, quad.normal);
+
+    return true;
+}
+
+
+
 
 bool lambertianScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     Vec3 scatterDirection = rec.normal + randomUnitVec(state);
@@ -329,6 +405,53 @@ bool mirrorScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenu
     return (dot(scattered.direction, rec.normal) > 0);
 }
 
+float glassReflectance(float cosine, float refIdx) {
+    float r0 = (1 - refIdx) / (1 + refIdx);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
+bool glassScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+    float indexOfRefraction = 1.5; // constant
+
+    Vec3 atten = {1.0f, 1.0f, 1.0f};
+    attenuation = atten;
+
+    float refractionRatio = rec.frontFace ? (1.0f / indexOfRefraction) : indexOfRefraction;
+
+    Vec3 unitDirection = unitVector(rIn.direction);
+    float cosTheta = min(dot(-unitDirection, rec.normal), 1.0);
+    float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+    
+    bool cannotRefract = (refractionRatio * sinTheta) > 1.0f;
+    Vec3 direction;
+    
+    if (cannotRefract || glassReflectance(cosTheta, refractionRatio) > randomFloat(state)) {
+        direction = reflect(unitDirection, rec.normal);
+    } else {
+        direction = refract(unitDirection, rec.normal, refractionRatio);
+    }
+    
+    Ray newRay = {rec.p, direction};
+    scattered = newRay; 
+
+    return true;
+}
+
+Vec3 emitted(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
+    
+    switch (rec.mat.type)
+    {
+        case DIFFUSE_LIGHT:
+            return rec.mat.albedo;
+            break;
+        default:
+            Vec3 black = {0.0f, 0.0f, 0.0f};
+            return black;
+            break;
+    }
+}
+
 
 bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     switch (rec.mat.type) {
@@ -336,6 +459,10 @@ bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation,
             return lambertianScatter(state, rIn, rec, attenuation, scattered);
         case MIRROR:
             return mirrorScatter(state, rIn, rec, attenuation, scattered);
+        case GLASS:
+            return glassScatter(state, rIn, rec, attenuation, scattered);
+        case DIFFUSE_LIGHT:
+            return false;
         default:
             return false;
     }
@@ -346,7 +473,8 @@ bool scatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation,
 
 
 export enum HittableType {
-    SPHERE
+    SPHERE,
+    QUAD,
 };
 
 export struct Hittable {
@@ -364,7 +492,6 @@ export struct HittableList {
 };
 
 bool hitHittableList(uniform const HittableList& hittables, Ray r, float rayTmin, float rayTmax, HitRecord& rec) {
-    HitRecord tempRec;
     bool hitAnything = false;
     float closestSoFar = rayTmax;
     
@@ -372,10 +499,16 @@ bool hitHittableList(uniform const HittableList& hittables, Ray r, float rayTmin
         switch (hittables.objects[i].type) {
             case SPHERE:
                 Sphere* sphere = (Sphere*)(hittables.objects[i].object);
-                if (hitSphere(*sphere, r, rayTmin, closestSoFar, tempRec)) {
+                if (hitSphere(*sphere, r, rayTmin, closestSoFar, rec)) {
                     hitAnything = true;
-                    closestSoFar = tempRec.t;
-                    rec = tempRec;
+                    closestSoFar = rec.t;
+                }
+                break;
+            case QUAD:
+                Quad* quad = (Quad*)(hittables.objects[i].object);
+                if (hitQuad(*quad, r, rayTmin, closestSoFar, rec)) {
+                    hitAnything = true;
+                    closestSoFar = rec.t;
                 }
                 break;
             default:
@@ -406,6 +539,7 @@ export struct Camera {
     uniform Vec3 u;
     uniform Vec3 v;
     uniform Vec3 w;
+    uniform Vec3 background;
 };
 
 export void initialize(uniform Camera& cam) {
@@ -465,7 +599,7 @@ Ray getRay(RNGState& state, uniform Camera& cam, int i, int j) {
     return r;
 }
 
-Vec3 rayColor(RNGState& state, Ray r, uniform int depth, uniform const HittableList& hittables) {
+Vec3 rayColor(uniform Camera& cam, RNGState& state, Ray r, uniform int depth, uniform const HittableList& hittables) {
     HitRecord rec;
     
     Vec3 black = {0.0f, 0.0f, 0.0f};
@@ -473,21 +607,22 @@ Vec3 rayColor(RNGState& state, Ray r, uniform int depth, uniform const HittableL
         return black;
     }
     
-    if (hitHittableList(hittables, r, 0.001f, infinity, rec)) {
-        Ray scattered;
-        Vec3 attenuation;
-        if (scatter(state, r, rec, attenuation, scattered)) {
-            return attenuation * rayColor(state, scattered, depth - 1, hittables);
-        }
-
-        return black;
+    float min = 0.001f;
+    float max = infinity;
+    
+    if (!hitHittableList(hittables, r, min, max, rec)) {
+        return cam.background;
     }
-
-    Vec3 unitDirection = unitVector(r.direction);
-    Vec3 white = {1.0f, 1.0f, 1.0f};
-    Vec3 blue = {0.5f, 0.7f, 1.0f};
-    float a = 0.5f * (unitDirection.y + 1.0f);
-    return (1.0f - a) * white + a * blue;
+    
+    Ray scattered;
+    Vec3 attenuation;
+    Vec3 emitted = emitted(state, r, rec, attenuation, scattered);
+    
+    if (!scatter(state, r, rec, attenuation, scattered)) {
+        return emitted;
+    }
+    
+    return emitted + attenuation * rayColor(cam, state, scattered, depth - 1, hittables);
 }
 
 
@@ -504,9 +639,13 @@ uniform Vec3 rayPacketColor(RNGState& state, uniform RayPacket& packet, uniform 
         if (isActive) {
             Vec3 localColor = {0.0f, 0.0f, 0.0f};
             HitRecord rec;
+
+            float min = 0.001f;
+            float max = infinity;
+
             if (depth <= 0) {
                 packet.active[i] = false;
-            } else if (hitHittableList(hittables, packet.rays[i], 0.001f, infinity, rec)) {
+            } else if (hitHittableList(hittables, packet.rays[i], min, max, rec)) {
                 packet.rays[i].origin = rec.p;
                 packet.rays[i].direction = rec.normal + randomUnitVec(state);
             } else {
@@ -540,7 +679,7 @@ task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int
         Vec3 pixelColor = {0.0f, 0.0f, 0.0f};
         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
             Ray r = getRay(state, cam, i, j);
-            pixelColor += rayColor(state, r, cam.maxDepth, hittables);
+            pixelColor += rayColor(cam, state, r, cam.maxDepth, hittables);
         }
 
         int k = (j * cam.imageWidth + i);

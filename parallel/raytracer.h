@@ -42,14 +42,17 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 #define __ISPC_ENUM_MaterialType__
 enum MaterialType {
     LAMBERTIAN = 0,
-    MIRROR = 1 
+    MIRROR = 1,
+    GLASS = 2,
+    DIFFUSE_LIGHT = 3 
 };
 #endif
 
 #ifndef __ISPC_ENUM_HittableType__
 #define __ISPC_ENUM_HittableType__
 enum HittableType {
-    SPHERE = 0 
+    SPHERE = 0,
+    QUAD = 1 
 };
 #endif
 
@@ -71,6 +74,19 @@ enum HittableType {
 struct Material {
     enum MaterialType type;
     struct float3  albedo;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_Quad__
+#define __ISPC_STRUCT_Quad__
+struct Quad {
+    struct float3  Q;
+    struct float3  u;
+    struct float3  v;
+    struct Material mat;
+    struct float3  normal;
+    float D;
+    struct float3  w;
 };
 #endif
 
@@ -102,6 +118,7 @@ struct Camera {
     struct float3  u;
     struct float3  v;
     struct float3  w;
+    struct float3  background;
 };
 #endif
 
@@ -138,10 +155,20 @@ struct Hittable {
 extern "C" {
 #endif // __cplusplus
 #if defined(__cplusplus)
+    extern void dummyQuad(struct Quad &quad);
+#else
+    extern void dummyQuad(struct Quad *quad);
+#endif // dummyQuad function declaraion
+#if defined(__cplusplus)
     extern void dummySphere(struct Sphere &sphere);
 #else
     extern void dummySphere(struct Sphere *sphere);
 #endif // dummySphere function declaraion
+#if defined(__cplusplus)
+    extern void initQuad(struct Quad &quad);
+#else
+    extern void initQuad(struct Quad *quad);
+#endif // initQuad function declaraion
 #if defined(__cplusplus)
     extern void initialize(struct Camera &cam);
 #else
