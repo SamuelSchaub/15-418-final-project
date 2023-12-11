@@ -13,7 +13,8 @@ class quad : public hittable {
                 auto n = cross(u, v);
                 normal = unit_vector(n);
                 D = dot(normal, Q);
-                w = n / dot(n, n); 
+                w = n / dot(n, n);
+
                 set_bounding_box();
         }
         

@@ -100,28 +100,55 @@ private:
         return (px * pixel_delta_u) + (py * pixel_delta_v);
     }
 
-    color ray_color(const ray& r, int depth, const hittable& world) const {
-        hit_record rec;
+    color ray_color(ray& r, int depth, const hittable& world) const {
+        // Serially process samples
+        auto result_color = color(1.0f, 1.0f, 1.0f);
+        auto light_received = color(0.0f, 0.0f, 0.0f);
 
-        // We've exceeded the ray bounce limit, no more light is gathered
-        if (depth <= 0)
-            return color(0.0f, 0.0f, 0.0f);
+        for (int i = 0; i < max_depth; i++) {
+            hit_record rec;
+            ray scattered;
+            color attenuation;
 
-        // If the ray hit nothing, return the background color
-        if (!world.hit(r, interval(0.001f, infinity), rec)) {
-            return background;
+            bool didHit = world.hit(r, interval(0.001f, infinity), rec);
+            if (didHit) {
+                light_received += rec.mat->emitted() * result_color;
+            } else {
+                light_received += background * result_color;
+                break;
+            }
+
+            if (rec.mat->scatter(r, rec, attenuation, scattered)) {
+                r.orig= scattered.orig;
+                r.dir= scattered.dir;
+                result_color *= attenuation;
+            }  else {
+                break;
+            }
         }
-            
-        ray scattered;
-        color attenuation;
-        color color_from_emission = rec.mat->emitted();
+        return light_received;
 
-        if (!rec.mat->scatter(r, rec, attenuation, scattered))
-            return color_from_emission;
-
-        color color_from_scatter = attenuation * ray_color(scattered, depth - 1, world);
-
-        return color_from_emission + color_from_scatter;
+//         hit_record rec;
+//
+//         // We've exceeded the ray bounce limit, no more light is gathered
+//         if (depth <= 0)
+//             return color(0.0f, 0.0f, 0.0f);
+//
+//         // If the ray hit nothing, return the background color
+//         if (!world.hit(r, interval(0.001f, infinity), rec)) {
+//             return background;
+//         }
+//
+//         ray scattered;
+//         color attenuation;
+//         color color_from_emission = rec.mat->emitted();
+//
+//         if (!rec.mat->scatter(r, rec, attenuation, scattered))
+//             return color_from_emission;
+//
+//         color color_from_scatter = attenuation * ray_color(scattered, depth - 1, world);
+//
+//         return color_from_emission + color_from_scatter;
     }
 };
 #endif // CAMERA_H
