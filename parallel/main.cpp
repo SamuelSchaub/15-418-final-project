@@ -48,6 +48,14 @@ ispc::float3 add(ispc::float3 a, ispc::float3 b) {
     return c;
 }
 
+float intervalSize(ispc::interval& i) {
+    return i.max - i.min;
+}
+
+ispc::interval expandInterval(ispc::interval& i, float delta) {
+    float padding = delta / 2.0f;
+    return ispc::interval{i.min - padding, i.max + padding};
+}
 
 ispc::aabb createAABB(ispc::aabb& a, ispc::aabb& b) {
     ispc::aabb bbox;
@@ -66,6 +74,14 @@ ispc::aabb createAABB(ispc::float3 a, ispc::float3 b) {
     return bbox;
 }
 
+ispc::aabb padAABB(ispc::aabb a) {
+    float delta = 0.0001f;
+    ispc::interval newX = (intervalSize(a.x) >= delta) ? a.x : expandInterval(a.x, delta);
+    ispc::interval newY = (intervalSize(a.y) >= delta) ? a.y : expandInterval(a.y, delta);
+    ispc::interval newZ = (intervalSize(a.z) >= delta) ? a.z : expandInterval(a.z, delta);
+    return ispc::aabb{newX, newY, newZ};
+}
+
 
 ispc::Sphere* createSphere(ispc::float3 center, float radius, ispc::Material* material) {
     ispc::Sphere* sphere = new ispc::Sphere;
@@ -76,6 +92,18 @@ ispc::Sphere* createSphere(ispc::float3 center, float radius, ispc::Material* ma
     ispc::float3 negativeRvec = ispc::float3{-radius, -radius, -radius};
     sphere->bbox = createAABB(add(center, negativeRvec), add(center, rvec));
     return sphere;
+}
+
+
+ispc::Quad* createQuad(ispc::float3 Q, ispc::float3 u, ispc::float3 v, ispc::Material* material) {
+    ispc::Quad* quad = new ispc::Quad;
+    quad->Q = Q;
+    quad->u = u;
+    quad->v = v;
+    quad->mat = *material;
+    quad->bbox = padAABB(createAABB(Q, add(add(Q, u), v)));
+    ispc::initQuad(*quad);
+    return quad;
 }
 
 void createHittable(ispc::HittableType type, void* object, std::vector<ispc::Hittable*>& objects) {
@@ -223,15 +251,6 @@ ispc::Material* createMaterial(ispc::MaterialType type, ispc::float3 albedo) {
     return material;
 }
 
-ispc::Quad* createQuad(ispc::float3 Q, ispc::float3 u, ispc::float3 v, ispc::Material* material) {
-    ispc::Quad* quad = new ispc::Quad;
-    quad->Q = Q;
-    quad->u = u;
-    quad->v = v;
-    quad->mat = *material;
-    ispc::initQuad(*quad);
-    return quad;
-}
 
 void glassTest(int argc, char* argv[]) {
     bool usePackets;
@@ -321,100 +340,100 @@ void glassTest(int argc, char* argv[]) {
     delete hittableList;
 }
 
-// void quadTest(int argc, char* argv[]) {
-//     bool usePackets;
-//     int imageWidth;
-//     int samplesPerPixel;
-//     int maxDepth;
-//     float vfov;
+void quadTest(int argc, char* argv[]) {
+    bool usePackets;
+    int imageWidth;
+    int samplesPerPixel;
+    int maxDepth;
+    float vfov;
 
-//     if (argc != 6) {
-//         std::cout << "Usage: " << argv[0]
-//                   << " <image width> <samples per pixel> <max depth> <usePackets> <vfov>"
-//                   << std::endl;
-//         return;
-//     }
+    if (argc != 6) {
+        std::cout << "Usage: " << argv[0]
+                  << " <image width> <samples per pixel> <max depth> <usePackets> <vfov>"
+                  << std::endl;
+        return;
+    }
 
-//     imageWidth = atoi(argv[1]);      // 400
-//     samplesPerPixel = atoi(argv[2]); // 100
-//     maxDepth = atoi(argv[3]);        // 50
-//     vfov = atoi(argv[4]);            // 80
-//     usePackets = atoi(argv[5]);
+    imageWidth = atoi(argv[1]);      // 400
+    samplesPerPixel = atoi(argv[2]); // 100
+    maxDepth = atoi(argv[3]);        // 50
+    vfov = atoi(argv[4]);            // 80
+    usePackets = atoi(argv[5]);
 
-//     auto lookfrom = ispc::float3{0, 0, 9};
-//     auto lookat = ispc::float3{0, 0, 0};
-//     auto vup = ispc::float3{0, 1, 0};
-//     auto background = ispc::float3{0.7f, 0.8f, 1.0f};
+    auto lookfrom = ispc::float3{0, 0, 9};
+    auto lookat = ispc::float3{0, 0, 0};
+    auto vup = ispc::float3{0, 1, 0};
+    auto background = ispc::float3{0.7f, 0.8f, 1.0f};
 
-//     ispc::Camera* camera = initializeCamera(imageWidth, samplesPerPixel, maxDepth, vfov,
-//                                             (16.0f / 9.0f), lookfrom, lookat, vup, background);
+    ispc::Camera* camera = initializeCamera(imageWidth, samplesPerPixel, maxDepth, vfov,
+                                            (16.0f / 9.0f), lookfrom, lookat, vup, background);
 
-//     // Scene Setup
-//     ispc::Material* materialLeft =
-//         createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{1.0f, 0.2f, 0.2f});
-//     ispc::Material* materialBack =
-//         createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 1.0f, 0.2f});
-//     ispc::Material* materialRight =
-//         createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 0.2f, 1.0f});
-//     ispc::Material* materialUpper =
-//         createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{1.0f, 0.5f, 0.0f});
-//     ispc::Material* materialLower =
-//         createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 0.8f, 0.8f});
+    // Scene Setup
+    ispc::Material* materialLeft =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{1.0f, 0.2f, 0.2f});
+    ispc::Material* materialBack =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 1.0f, 0.2f});
+    ispc::Material* materialRight =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 0.2f, 1.0f});
+    ispc::Material* materialUpper =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{1.0f, 0.5f, 0.0f});
+    ispc::Material* materialLower =
+        createMaterial(ispc::MaterialType::LAMBERTIAN, ispc::float3{0.2f, 0.8f, 0.8f});
 
-//     // Quads
-//     ispc::Quad* quad1 = createQuad(ispc::float3{-3, -2, 5}, ispc::float3{0, 0, -4},
-//                                    ispc::float3{0, 4, 0}, materialLeft);
-//     ispc::Quad* quad2 = createQuad(ispc::float3{-2, -2, 0}, ispc::float3{4, 0, 0},
-//                                    ispc::float3{0, 4, 0}, materialBack);
-//     ispc::Quad* quad3 = createQuad(ispc::float3{3, -2, 1}, ispc::float3{0, 0, 4},
-//                                    ispc::float3{0, 4, 0}, materialRight);
-//     ispc::Quad* quad4 = createQuad(ispc::float3{-2, 3, 1}, ispc::float3{4, 0, 0},
-//                                    ispc::float3{0, 0, 4}, materialUpper);
-//     ispc::Quad* quad5 = createQuad(ispc::float3{-2, -3, 5}, ispc::float3{4, 0, 0},
-//                                    ispc::float3{0, 0, -4}, materialLower);
+    // Quads
+    ispc::Quad* quad1 = createQuad(ispc::float3{-3, -2, 5}, ispc::float3{0, 0, -4},
+                                   ispc::float3{0, 4, 0}, materialLeft);
+    ispc::Quad* quad2 = createQuad(ispc::float3{-2, -2, 0}, ispc::float3{4, 0, 0},
+                                   ispc::float3{0, 4, 0}, materialBack);
+    ispc::Quad* quad3 = createQuad(ispc::float3{3, -2, 1}, ispc::float3{0, 0, 4},
+                                   ispc::float3{0, 4, 0}, materialRight);
+    ispc::Quad* quad4 = createQuad(ispc::float3{-2, 3, 1}, ispc::float3{4, 0, 0},
+                                   ispc::float3{0, 0, 4}, materialUpper);
+    ispc::Quad* quad5 = createQuad(ispc::float3{-2, -3, 5}, ispc::float3{4, 0, 0},
+                                   ispc::float3{0, 0, -4}, materialLower);
 
-//     std::vector<ispc::Hittable> objects = std::vector<ispc::Hittable>();
+    std::vector<ispc::Hittable*> objects = std::vector<ispc::Hittable*>();
 
-//     createHittable(ispc::HittableType::QUAD, (void*)quad1, objects);
-//     createHittable(ispc::HittableType::QUAD, (void*)quad2, objects);
-//     createHittable(ispc::HittableType::QUAD, (void*)quad3, objects);
-//     createHittable(ispc::HittableType::QUAD, (void*)quad4, objects);
-//     createHittable(ispc::HittableType::QUAD, (void*)quad5, objects);
+    createHittable(ispc::HittableType::QUAD, (void*)quad1, objects);
+    createHittable(ispc::HittableType::QUAD, (void*)quad2, objects);
+    createHittable(ispc::HittableType::QUAD, (void*)quad3, objects);
+    createHittable(ispc::HittableType::QUAD, (void*)quad4, objects);
+    createHittable(ispc::HittableType::QUAD, (void*)quad5, objects);
 
-//     ispc::HittableList* hittableList = createHittableList(objects);
+    ispc::HittableList* hittableList = createHittableList(objects);
 
-//     // Render
+    // Render
 
-//     ispc::Image image;
-//     image.R = new int[camera->imageWidth * camera->imageHeight];
-//     image.G = new int[camera->imageWidth * camera->imageHeight];
-//     image.B = new int[camera->imageWidth * camera->imageHeight];
+    ispc::Image image;
+    image.R = new int[camera->imageWidth * camera->imageHeight];
+    image.G = new int[camera->imageWidth * camera->imageHeight];
+    image.B = new int[camera->imageWidth * camera->imageHeight];
 
-//     std::chrono::steady_clock::time_point start;
-//     std::chrono::steady_clock::time_point end;
-//     // chrono::steady_clock::time_point duration;
-//     if (usePackets) {
-//         start = std::chrono::high_resolution_clock::now();
-//         ispc::renderImageWithPackets(image, *camera, *hittableList);
-//         end = std::chrono::high_resolution_clock::now();
-//     } else {
-//         start = std::chrono::high_resolution_clock::now();
-//         ispc::renderImage(image, *camera, *hittableList);
-//         end = std::chrono::high_resolution_clock::now();
-//     }
-//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::chrono::steady_clock::time_point start;
+    std::chrono::steady_clock::time_point end;
+    // chrono::steady_clock::time_point duration;
+    if (usePackets) {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImageWithPackets(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    } else {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImage(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    }
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-//     std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
 
-//     writePPMImage(image, camera->imageWidth, camera->imageHeight, "image.ppm");
+    writePPMImage(image, camera->imageWidth, camera->imageHeight, "image.ppm");
 
-//     // delete[] out;
-//     delete[] image.R;
-//     delete[] image.G;
-//     delete[] image.B;
-//     delete camera;
-//     delete hittableList;
-// }
+    // delete[] out;
+    delete[] image.R;
+    delete[] image.G;
+    delete[] image.B;
+    delete camera;
+    delete hittableList;
+}
 
 void randomSpheres(int argc, char* argv[]) {
     // Init
@@ -616,11 +635,11 @@ void cornellBox(int argc, char* argv[]) {
     createHittable(ispc::HittableType::QUAD, (void*)quad6, objects);
 
     // No BVH Code
-    // ispc::HittableList* hittableList = createHittableList(objects);
+    ispc::HittableList* hittableList = createHittableList(objects);
     
     // BVH Code
-    ispc::Hittable* root = createBVH(objects);
-    ispc::HittableList* hittableList = createHittableList(root);
+    // ispc::Hittable* root = createBVH(objects);
+    // ispc::HittableList* hittableList = createHittableList(root);
 
     // Render
 
@@ -656,7 +675,7 @@ void cornellBox(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    switch (4) {
+    switch (3) {
     case 1:
         glassTest(argc, argv);
         break;
