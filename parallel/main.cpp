@@ -1,4 +1,5 @@
 #include "bvh.h"
+#include "bvh.h"
 #include "raytracer.h"
 #include "scenes.h"
 #include <algorithm>
@@ -62,6 +63,8 @@ int main(int argc, char* argv[]) {
                       ZOOM); // More Spheres
         break;
     default:
+        std::cout << "Invalid scene number" << std::endl;
+        return 1;
         std::cout << "Invalid scene number" << std::endl;
         return 1;
     }
