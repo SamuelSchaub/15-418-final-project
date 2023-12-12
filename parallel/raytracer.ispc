@@ -1,20 +1,13 @@
 // Constants
 
-
 const uniform float pi = 3.1415926535897932385f;
 const uniform float infinity = 340282346638528859811704183484516925440.0f;
 
 // Utility Functions
 
+inline float degreesToRadians(float degrees) { return degrees * pi / 180.0f; }
 
-inline float degreesToRadians(float degrees) {
-  return degrees * pi / 180.0f;
-}
-
-inline uniform float degreesToRadians(uniform float degrees) {
-  return degrees * pi / 180.0f;
-}
-
+inline uniform float degreesToRadians(uniform float degrees) { return degrees * pi / 180.0f; }
 
 // Vec3
 
@@ -22,55 +15,33 @@ typedef float<3> Vec3;
 
 export Vec3;
 
-inline float dot(const Vec3 u, const Vec3 v) {
-    return u.x * v.x + u.y * v.y + u.z * v.z;
-}
+inline float dot(const Vec3 u, const Vec3 v) { return u.x * v.x + u.y * v.y + u.z * v.z; }
 
-inline uniform float dot(uniform const Vec3 u, uniform const Vec3 v) {
-    return u.x * v.x + u.y * v.y + u.z * v.z;
-}
+inline uniform float dot(uniform const Vec3 u, uniform const Vec3 v) { return u.x * v.x + u.y * v.y + u.z * v.z; }
 
-inline float lengthSquared(const Vec3 v) {
-    return dot(v, v);
-}
+inline float lengthSquared(const Vec3 v) { return dot(v, v); }
 
-inline uniform float lengthSquared(uniform const Vec3 v) {
-    return dot(v, v);
-}
+inline uniform float lengthSquared(uniform const Vec3 v) { return dot(v, v); }
 
-inline float length(const Vec3 v) {
-    return sqrt(lengthSquared(v));
-}
+inline float length(const Vec3 v) { return sqrt(lengthSquared(v)); }
 
-inline uniform float length(uniform const Vec3 v) {
-    return sqrt(lengthSquared(v));
-}
+inline uniform float length(uniform const Vec3 v) { return sqrt(lengthSquared(v)); }
 
 inline Vec3 cross(const Vec3 u, const Vec3 v) {
-    Vec3 product = { u.y * v.z - u.z * v.y, 
-                             u.z * v.x - u.x * v.z,
-                             u.x * v.y - u.y * v.x };
+    Vec3 product = {u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
     return product;
 }
 
 inline uniform Vec3 cross(uniform const Vec3 u, uniform const Vec3 v) {
-    uniform Vec3 product = { u.y * v.z - u.z * v.y, 
-                             u.z * v.x - u.x * v.z,
-                             u.x * v.y - u.y * v.x };
+    uniform Vec3 product = {u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
     return product;
 }
 
-inline Vec3 unitVector(const Vec3 v) {
-    return v / length(v);
-}
+inline Vec3 unitVector(const Vec3 v) { return v / length(v); }
 
-inline uniform Vec3 unitVector(uniform const Vec3 v) {
-    return v / length(v);
-}
+inline uniform Vec3 unitVector(uniform const Vec3 v) { return v / length(v); }
 
-inline Vec3 reflect(const Vec3 v, const Vec3 n) {
-    return v - 2 * dot(v, n) * n;
-}
+inline Vec3 reflect(const Vec3 v, const Vec3 n) { return v - 2 * dot(v, n) * n; }
 
 inline Vec3 refract(const Vec3 uv, const Vec3 n, float etaiOverEtat) {
     float cosTheta = min(dot(-uv, n), 1.0);
@@ -79,18 +50,15 @@ inline Vec3 refract(const Vec3 uv, const Vec3 n, float etaiOverEtat) {
     return rOutPerp + rOutParallel;
 }
 
-
 bool nearZero(const Vec3 v) {
     const float s = 1e-8f;
     return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
 }
 
-
 export struct interval {
     float min;
     float max;
 };
-
 
 interval intervalUnion(interval& a, interval& b) {
     interval result;
@@ -99,29 +67,19 @@ interval intervalUnion(interval& a, interval& b) {
     return result;
 }
 
-bool contains(interval& a, float x) {
-    return (a.min <= x) && (x <= a.max);
-}
+bool contains(interval& a, float x) { return (a.min <= x) && (x <= a.max); }
 
+bool surrounds(interval& a, float x) { return (a.min < x) && (x < a.max); }
 
-bool surrounds(interval& a, float x) {
-    return (a.min < x) && (x < a.max);
-}
+float size(interval& a) { return a.max - a.min; }
 
-float size(interval& a) {
-    return a.max - a.min;
-}
-
-interval expand(interval& a , float delta) {
+interval expand(interval& a, float delta) {
     float paddding = delta / 2.0f;
     interval result = {a.min - paddding, a.max + paddding};
     return result;
 }
 
-
-
 // Ray
-
 
 export struct Ray {
     Vec3 origin;
@@ -133,9 +91,7 @@ export struct RayPacket {
     bool* active;
 };
 
-Vec3 rayAt(const Ray ray, float t) {
-    return ray.origin + t * ray.direction;
-}
+Vec3 rayAt(const Ray ray, float t) { return ray.origin + t * ray.direction; }
 
 inline bool anyActive(uniform RayPacket& packet, uniform int spp) {
     bool localActive = false;
@@ -171,20 +127,18 @@ aabb aabbFromAABBs(aabb& a, aabb& b) {
     return result;
 }
 
-
 interval getAxis(uniform aabb& bbox, int axis) {
     switch (axis) {
-        case 0:
-            return bbox.x;
-        case 1:
-            return bbox.y;
-        case 2:
-            return bbox.z;
-        default:
-            return bbox.x;
+    case 0:
+        return bbox.x;
+    case 1:
+        return bbox.y;
+    case 2:
+        return bbox.z;
+    default:
+        return bbox.x;
     }
 }
-
 
 bool aabbHit(uniform aabb& bbox, Ray& r, interval ray_t) {
     for (int a = 0; a < 3; a++) {
@@ -217,9 +171,7 @@ bool aabbHit(uniform aabb& bbox, Ray& r, interval ray_t) {
     return true;
 }
 
-
 // Random
-
 
 // From (https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm)
 uint32 randomSeedGenerator(uint32 x, uint32 y) {
@@ -241,16 +193,13 @@ uint32 randomSeedGenerator(uint32 x, uint32 y) {
     return v;
 }
 
-
 RNGState randomState(int x, int y) {
     RNGState state;
     seed_rng(&state, randomSeedGenerator(x, y) + programIndex);
     return state;
 }
 
-float randomFloat(RNGState& state) {
-    return frandom(&state);
-}
+float randomFloat(RNGState& state) { return frandom(&state); }
 
 float randomFloat(RNGState& state, float minVal, float maxVal) {
     return minVal + (maxVal - minVal) * randomFloat(state);
@@ -259,25 +208,25 @@ float randomFloat(RNGState& state, float minVal, float maxVal) {
 // Random vector functions
 
 Vec3 randomVec(RNGState& state) {
-    Vec3 v = { randomFloat(state), randomFloat(state), randomFloat(state) };
+    Vec3 v = {randomFloat(state), randomFloat(state), randomFloat(state)};
     return v;
 }
 
 Vec3 randomVec(RNGState& state, float minVal, float maxVal) {
-    Vec3 v = { randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal) };
+    Vec3 v = {randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal),
+              randomFloat(state, minVal, maxVal)};
     return v;
 }
 
 Vec3 randomVecInUnitSphere(RNGState& state) {
     while (true) {
         Vec3 p = randomVec(state, -1, 1);
-        if (lengthSquared(p) < 1) return p;
+        if (lengthSquared(p) < 1)
+            return p;
     }
 }
 
-Vec3 randomUnitVec(RNGState& state) {
-    return unitVector(randomVecInUnitSphere(state));
-}
+Vec3 randomUnitVec(RNGState& state) { return unitVector(randomVecInUnitSphere(state)); }
 
 Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
     Vec3 onUnitSphere = randomUnitVec(state);
@@ -288,9 +237,7 @@ Vec3 randomVecOnHemisphere(RNGState& state, Vec3& normal) {
     }
 }
 
-
 // Image
-
 
 export struct Image {
     uniform int* R;
@@ -298,24 +245,18 @@ export struct Image {
     uniform int* B;
 };
 
-
 // Color
 
+float linearToGamma(float linearComponenet) { return sqrt(linearComponenet); }
 
-float linearToGamma(float linearComponenet) {
-    return sqrt(linearComponenet);
-}
-
-uniform float linearToGamma(uniform float linearComponenet) {
-    return sqrt(linearComponenet);
-}
+uniform float linearToGamma(uniform float linearComponenet) { return sqrt(linearComponenet); }
 
 inline void writeColor(uniform Image& image, Vec3& pixelColor, int samplesPerPixel, int k) {
     pixelColor = (1.0f / samplesPerPixel) * pixelColor;
-    pixelColor.x = linearToGamma(pixelColor.x); 
-    pixelColor.y = linearToGamma(pixelColor.y); 
-    pixelColor.z = linearToGamma(pixelColor.z); 
-    
+    pixelColor.x = linearToGamma(pixelColor.x);
+    pixelColor.y = linearToGamma(pixelColor.y);
+    pixelColor.z = linearToGamma(pixelColor.z);
+
     float low = 0.000f;
     float high = 0.999f;
 
@@ -330,10 +271,10 @@ inline void writeColor(uniform Image& image, Vec3& pixelColor, int samplesPerPix
 
 inline void writeColor(uniform Image& image, uniform Vec3& pixelColor, uniform int samplesPerPixel, uniform int k) {
     pixelColor = (1.0f / samplesPerPixel) * pixelColor;
-    pixelColor.x = linearToGamma(pixelColor.x); 
-    pixelColor.y = linearToGamma(pixelColor.y); 
-    pixelColor.z = linearToGamma(pixelColor.z); 
-    
+    pixelColor.x = linearToGamma(pixelColor.x);
+    pixelColor.y = linearToGamma(pixelColor.y);
+    pixelColor.z = linearToGamma(pixelColor.z);
+
     uniform float low = 0.000f;
     uniform float high = 0.999f;
 
@@ -343,9 +284,9 @@ inline void writeColor(uniform Image& image, uniform Vec3& pixelColor, uniform i
 
     image.R[k] = r;
     image.G[k] = g;
-    image.B[k] = b;;
+    image.B[k] = b;
+    ;
 }
-
 
 // Material
 
@@ -356,15 +297,12 @@ export enum MaterialType {
     DIFFUSE_LIGHT,
 };
 
-
 export struct Material {
     MaterialType type;
     Vec3 albedo;
 };
 
-
-// Hit Record 
-
+// Hit Record
 
 struct HitRecord {
     Material mat;
@@ -379,9 +317,7 @@ void setFaceNormal(HitRecord& rec, const Ray r, const Vec3& outwardNormal) {
     rec.normal = rec.frontFace ? outwardNormal : -1.0f * outwardNormal;
 }
 
-
 // Sphere Hittable
-
 
 export struct Sphere {
     Vec3 center;
@@ -390,12 +326,8 @@ export struct Sphere {
     float radius;
 };
 
-
 // ispc compiler bug
-export void dummySphere(uniform Sphere& sphere) {
-    return;
-}
-
+export void dummySphere(uniform Sphere& sphere) { return; }
 
 bool hitSphere(Sphere sphere, const Ray r, interval ray_t, HitRecord& rec) {
     Vec3 oc = r.origin - sphere.center;
@@ -404,9 +336,10 @@ bool hitSphere(Sphere sphere, const Ray r, interval ray_t, HitRecord& rec) {
     float c = lengthSquared(oc) - sphere.radius * sphere.radius;
 
     float discriminant = (halfB * halfB) - (a * c);
-    if (discriminant < 0) return false;
+    if (discriminant < 0)
+        return false;
     float sqrtd = sqrt(discriminant);
-    
+
     float root = (-halfB - sqrtd) / a;
     if (!(surrounds(ray_t, root))) {
         root = (-halfB + sqrtd) / a;
@@ -414,7 +347,7 @@ bool hitSphere(Sphere sphere, const Ray r, interval ray_t, HitRecord& rec) {
             return false;
         }
     }
-    
+
     rec.t = root;
     rec.p = rayAt(r, rec.t);
     rec.mat = sphere.mat;
@@ -422,7 +355,6 @@ bool hitSphere(Sphere sphere, const Ray r, interval ray_t, HitRecord& rec) {
     setFaceNormal(rec, r, outwardNormal);
     return true;
 }
-
 
 // Quad Hittable
 
@@ -438,9 +370,7 @@ export struct Quad {
 };
 
 // ispc compiler bug
-export void dummyQuad(uniform Quad& quad) {
-    return;
-}
+export void dummyQuad(uniform Quad& quad) { return; }
 
 export void initQuad(uniform Quad& quad) {
     uniform Vec3 n = cross(quad.u, quad.v);
@@ -465,7 +395,7 @@ bool hitQuad(Quad quad, const Ray r, interval ray_t, HitRecord& rec) {
     if (abs(denom) < epsilon) {
         return false;
     }
-    
+
     // Return false if the hit point parameter t is outside the ray interval.
     float t = (quad.D - dot(quad.normal, r.origin)) / denom;
     if (!(contains(ray_t, t))) {
@@ -476,11 +406,11 @@ bool hitQuad(Quad quad, const Ray r, interval ray_t, HitRecord& rec) {
     Vec3 planarHitptVector = intersection - quad.Q;
     float alpha = dot(quad.w, cross(planarHitptVector, quad.v));
     float beta = dot(quad.w, cross(quad.u, planarHitptVector));
-    
+
     if (!isInterior(alpha, beta, rec)) {
         return false;
     }
-    
+
     rec.t = t;
     rec.p = intersection;
     rec.mat = quad.mat;
@@ -499,7 +429,6 @@ bool lambertianScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& at
     attenuation = rec.mat.albedo;
     return true;
 }
-
 
 bool mirrorScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     Vec3 reflected = reflect(unitVector(rIn.direction), rec.normal);
@@ -526,126 +455,189 @@ bool glassScatter(RNGState& state, const Ray& rIn, HitRecord& rec, Vec3& attenua
     Vec3 unitDirection = unitVector(rIn.direction);
     float cosTheta = min(dot(-unitDirection, rec.normal), 1.0);
     float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
-    
+
     bool cannotRefract = (refractionRatio * sinTheta) > 1.0f;
     Vec3 direction;
-    
+
     if (cannotRefract || glassReflectance(cosTheta, refractionRatio) > randomFloat(state)) {
         direction = reflect(unitDirection, rec.normal);
     } else {
         direction = refract(unitDirection, rec.normal, refractionRatio);
     }
-    
+
     Ray newRay = {rec.p, direction};
-    scattered = newRay; 
+    scattered = newRay;
 
     return true;
 }
 
 Vec3 emitted(RNGState& state, Ray rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
-    
-    switch (rec.mat.type)
-    {
-        case DIFFUSE_LIGHT:
-            return rec.mat.albedo;
-            break;
-        default:
-            Vec3 black = {0.0f, 0.0f, 0.0f};
-            return black;
-            break;
+
+    switch (rec.mat.type) {
+    case DIFFUSE_LIGHT:
+        return rec.mat.albedo;
+        break;
+    default:
+        Vec3 black = {0.0f, 0.0f, 0.0f};
+        return black;
+        break;
     }
 }
-
 
 bool scatter(RNGState& state, Ray rIn, HitRecord& rec, Vec3& attenuation, Ray& scattered) {
     switch (rec.mat.type) {
-        case LAMBERTIAN:
-            return lambertianScatter(state, rIn, rec, attenuation, scattered);
-        case MIRROR:
-            return mirrorScatter(state, rIn, rec, attenuation, scattered);
-        case GLASS:
-            return glassScatter(state, rIn, rec, attenuation, scattered);
-        case DIFFUSE_LIGHT:
-            return false;
-        default:
-            return false;
+    case LAMBERTIAN:
+        return lambertianScatter(state, rIn, rec, attenuation, scattered);
+    case MIRROR:
+        return mirrorScatter(state, rIn, rec, attenuation, scattered);
+    case GLASS:
+        return glassScatter(state, rIn, rec, attenuation, scattered);
+    case DIFFUSE_LIGHT:
+        return false;
+    default:
+        return false;
     }
 }
 
-
-
 // Hittable
 
-
-export enum HittableType {
-    SPHERE,
-    QUAD,
-    BVH_NODE
-};
+export enum HittableType { SPHERE, QUAD, NODE, BVH };
 
 export struct Hittable {
     HittableType type;
     void* object;
 };
 
-export struct BVH_Node {
+export struct Node {
     aabb bbox;
-    Hittable* left;
-    Hittable* right;
+    uint32 start;
+    uint32 size;
+    uint32 left;
+    uint32 right;
 };
 
-export void dummyBVHNode(uniform BVH_Node& node) {
-    return;
-}
+bool isLeaf(uniform Node& node) { return node.left == node.right; }
 
+export struct Bvh {
+    uniform Hittable* objects;
+    uniform Node* nodes;
+    uint32 numNodes;
+    uint32 numObjects;
+    uint32 root;
+};
+
+export void dummyBVH(uniform Bvh& bvh) { return; }
+
+export void dummyNode(uniform Node& node) { return; }
 
 bool hitHittable(uniform Hittable& hittable, Ray r, interval ray_t, HitRecord& rec);
 
-bool hitBVHNode(uniform BVH_Node& node, Ray r, interval ray_t, HitRecord& rec) {
-    if (!aabbHit(node.bbox, r, ray_t)) {
+bool hitBVH(uniform Bvh& bvh, Ray r, interval ray_t, uniform uint32 nodeIndex, HitRecord& rec) {
+    if (nodeIndex >= bvh.numNodes) {
         return false;
     }
 
-    uniform Hittable& left = *node.left;
-    bool hitLeft = hitHittable(left, r, ray_t, rec);
+    uniform Node& node = bvh.nodes[nodeIndex];
+    bool hit = aabbHit(node.bbox, r, ray_t);
+    if (!hit) { //ray_t.min > rec.t) {
+        return false;
+    }
+
+    if (isLeaf(node)) {
+        bool hitAnything = false;
+        float closestSoFar = ray_t.max;
+        for (uniform int i = node.start; i < node.start + node.size; i++) {
+            interval range = {ray_t.min, closestSoFar};
+            uniform Hittable& hittable = bvh.objects[i];
+            if (hitHittable(hittable, r, range, rec)) {
+                hitAnything = true;
+                closestSoFar = rec.t;
+            }
+        }
+        
+        return hitAnything;
+    }
+
+    uniform Node& left = bvh.nodes[node.left];
+    uniform Node& right = bvh.nodes[node.right];
+
+    bool hitLeft = hitBVH(bvh, r, ray_t, node.left, rec);
 
     float newMax = hitLeft ? rec.t : ray_t.max;
     interval newInterval = {ray_t.min, newMax};
 
-    uniform Hittable& right = *node.right;
-    bool hitRight = hitHittable(*node.right, r, newInterval, rec);
+    bool hitRight = hitBVH(bvh, r, newInterval, node.right, rec);
 
     return hitLeft || hitRight;
+
+    // HitRecord leftRec;
+    // leftRec.t = infinity;
+    // interval leftRange = {ray_t.min, rec.t};
+    // uniform Node& left = bvh.nodes[node.left];
+
+    // HitRecord rightRec;
+    // rightRec.t = infinity;
+    // uniform Node& right = bvh.nodes[node.right];
+
+    // bool hitLeft = aabbHit(left.bbox, r, ray_t);
+
+    // // bool hitLeft = hitBVH(bvh, r, ray_t, node.left, leftRec);
+    // // bool hitRight = hitBVH(bvh, r, ray_t, node.right, rightRec);
+
+    // if (hitLeft && hitRight) {
+    //     uint32 first = leftRec.t <= rightRec.t ? leftRec.t : rightRec.t;
+    //     uint32 second = leftRec.t <= rightRec.t ? rightRec.t : leftRec.t;
+    //     HitRecord secondRec = leftRec.t <= rightRec.t ? rightRec : leftRec;
+
+    //     // hit
+    // }
 }
 
+// bool hitBVHNode(uniform BVH_Node& node, Ray r, interval ray_t, HitRecord& rec) {
+//     if (!aabbHit(node.bbox, r, ray_t)) {
+//         return false;
+//     }
 
+//     uniform Hittable& left = *node.left;
+//     bool hitLeft = hitHittable(left, r, ray_t, rec);
+
+//     float newMax = hitLeft ? rec.t : ray_t.max;
+//     interval newInterval = {ray_t.min, newMax};
+
+//     uniform Hittable& right = *node.right;
+//     bool hitRight = hitHittable(*node.right, r, newInterval, rec);
+
+//     return hitLeft || hitRight;
+// }
 
 bool hitHittable(uniform Hittable& hittable, Ray r, interval ray_t, HitRecord& rec) {
     switch (hittable.type) {
-        case SPHERE:
-            Sphere* sphere = (Sphere*)(hittable.object);
-            return (hitSphere(*sphere, r, ray_t, rec));
-            break;
-        case BVH_NODE:
-            uniform BVH_Node *uniform node = (uniform BVH_Node *uniform)(hittable.object);
-            uniform BVH_Node& nodeRef = *node;
-            return hitBVHNode(nodeRef, r, ray_t, rec);
-        case QUAD:
-            Quad* quad = (Quad*)(hittable.object);
-            interval range = {ray_t.min, ray_t.max};
-            return hitQuad(*quad, r, range, rec);
-        default:
-            return false;
-            break;
+    case SPHERE:
+        Sphere* sphere = (Sphere*)(hittable.object);
+        return (hitSphere(*sphere, r, ray_t, rec));
+        break;
+    // case BVH_NODE:
+    //     uniform BVH_Node *uniform node = (uniform BVH_Node *uniform)(hittable.object);
+    //     uniform BVH_Node& nodeRef = *node;
+    //     return hitBVHNode(nodeRef, r, ray_t, rec);
+    case QUAD:
+        Quad* quad = (Quad*)(hittable.object);
+        // interval range = {ray_t.min, ray_t.max};
+        return hitQuad(*quad, r, ray_t, rec);
+    case BVH:
+        uniform Bvh* uniform bvh = (Bvh*)(hittable.object);
+        uniform Bvh& bvhRef = *bvh;
+        rec.t = infinity;
+        return hitBVH(bvhRef, r, ray_t, bvhRef.root, rec);
+    default:
+        return false;
     }
 }
 
-
 // Hittable List
 
-
 export struct HittableList {
-    Hittable** objects;
+    Hittable* objects;
     aabb bbox;
     int numObjects;
 };
@@ -653,36 +645,34 @@ export struct HittableList {
 bool hitHittableList(const uniform HittableList& hittables, Ray r, interval ray_t, HitRecord& rec) {
     bool hitAnything = false;
     float closestSoFar = ray_t.max;
-    
+
     for (uniform int i = 0; i < hittables.numObjects; i++) {
         interval range = {ray_t.min, closestSoFar};
-        uniform Hittable& hittable = *hittables.objects[i];
+        uniform Hittable& hittable = hittables.objects[i];
         if (hitHittable(hittable, r, range, rec)) {
-            hitAnything = true; 
+            hitAnything = true;
             closestSoFar = rec.t;
         }
     }
     return hitAnything;
 }
 
-
 // Camera
 
-
 export struct Camera {
-    uniform float aspectRatio; // Ratio of image width over heigh
-    uniform int imageWidth; // Rendered image width in pixel count
+    uniform float aspectRatio;   // Ratio of image width over heigh
+    uniform int imageWidth;      // Rendered image width in pixel count
     uniform int samplesPerPixel; // Count of random samples for each pixel
-    uniform int maxDepth; // Maximum number of ray bounces into scene
+    uniform int maxDepth;        // Maximum number of ray bounces into scene
     uniform float vfov;
     uniform Vec3 lookfrom;
     uniform Vec3 lookat;
     uniform Vec3 vup;
-    uniform int imageHeight;   // Rendered image height
-    uniform Vec3 center;      // Camera center
+    uniform int imageHeight;      // Rendered image height
+    uniform Vec3 center;          // Camera center
     uniform Vec3 pixel00Location; // Location of pixel (0,0)
-    uniform Vec3 pixelDeltaU; // Offset to pixel to the right
-    uniform Vec3 pixelDeltaV; // Offset to pixel below
+    uniform Vec3 pixelDeltaU;     // Offset to pixel to the right
+    uniform Vec3 pixelDeltaV;     // Offset to pixel below
     uniform Vec3 u;
     uniform Vec3 v;
     uniform Vec3 w;
@@ -701,12 +691,12 @@ export void initialize(uniform Camera& cam) {
     uniform float h = tan(theta / 2);
     uniform float viewportHeight = 2 * h * focalLength;
     uniform float viewportWidth = viewportHeight * (float)cam.imageWidth / (float)cam.imageHeight;
-    
+
     // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
     cam.w = unitVector(cam.lookfrom - cam.lookat);
     cam.u = unitVector(cross(cam.vup, cam.w));
     cam.v = cross(cam.w, cam.u);
-    
+
     // Calculate the vectors across the horizontal and down the vertical
     // viewport edges.
     uniform Vec3 viewportU = viewportWidth * cam.u;
@@ -717,13 +707,11 @@ export void initialize(uniform Camera& cam) {
     cam.pixelDeltaV = viewportV / (float)cam.imageHeight;
 
     // Calculate the location of the upper left pixel.
-    uniform Vec3 viewportUpperLeft = cam.center - (focalLength * cam.w) - viewportU/2 - viewportV/2;
+    uniform Vec3 viewportUpperLeft = cam.center - (focalLength * cam.w) - viewportU / 2 - viewportV / 2;
     cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
 }
 
-
 // Main functions
-
 
 Vec3 pixelSampleSquare(RNGState& state, uniform Camera& cam) {
     float px = -0.5f + randomFloat(state);
@@ -746,42 +734,38 @@ Ray getRay(RNGState& state, uniform Camera& cam, int i, int j) {
     return r;
 }
 
-Vec3 rayColor(uniform Vec3& background, RNGState& state, Ray r, uniform int depth, uniform const HittableList& hittables) {
+Vec3 rayColor(uniform Vec3& background, RNGState& state, Ray r, uniform int depth,
+              uniform const HittableList& hittables) {
     HitRecord rec;
-    
+
     Vec3 black = {0.0f, 0.0f, 0.0f};
     if (depth <= 0) {
         return black;
     }
-    
+
     float min = 0.001f;
     float max = infinity;
-    
+
     interval range = {min, max};
     if (!hitHittableList(hittables, r, range, rec)) {
         return background;
     }
-    
+
     Ray scattered;
     Vec3 attenuation;
     Vec3 emitted = emitted(state, r, rec, attenuation, scattered);
-    
+
     if (!scatter(state, r, rec, attenuation, scattered)) {
         return emitted;
     }
-    
+
     return emitted + attenuation * rayColor(background, state, scattered, depth - 1, hittables);
 }
 
-Vec3 reduceAddColor(Vec3& localColor, uniform Vec3& globalColor) {
-    globalColor.x += reduce_add(localColor.x);
-    globalColor.y += reduce_add(localColor.y);
-    globalColor.z += reduce_add(localColor.z);
-}
-
-uniform Vec3 rayPacketColor(RNGState& state, uniform Vec3& background, uniform RayPacket& packet, uniform int maxDepth, uniform int spp, uniform const HittableList& hittables) {
+uniform Vec3 rayPacketColor(RNGState& state, uniform Vec3& background, uniform RayPacket& packet, uniform int maxDepth,
+                            uniform int spp, uniform const HittableList& hittables) {
     uniform Vec3 globalColor = {0.0f, 0.0f, 0.0f};
-    
+
     interval range = {0.001f, infinity};
     foreach (i = 0 ... spp) {
         Vec3 localRayColor = {1.0f, 1.0f, 1.0f};
@@ -804,28 +788,31 @@ uniform Vec3 rayPacketColor(RNGState& state, uniform Vec3& background, uniform R
                     lightReceived += background * localRayColor;
                     packet.active[i] = false;
                 }
-                
+
                 if (didHit && scatter(state, r, rec, attenuation, scattered)) {
                     localRayColor *= attenuation;
                 } else {
                     packet.active[i] = false;
                 }
-                
+
                 packet.rays[i] = scattered;
             }
         }
-        reduceAddColor(lightReceived, globalColor);
+
+        globalColor.x += reduce_add(lightReceived.x);
+        globalColor.y += reduce_add(lightReceived.y);
+        globalColor.z += reduce_add(lightReceived.z);
     }
 
     return globalColor;
 }
 
-
-task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables) {
+task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask,
+                          uniform const HittableList& hittables) {
     uniform int ystart = taskIndex * rowsPerTask;
     uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
 
-    foreach (j = ystart ... yend, i = 0 ... cam.imageWidth) {
+    foreach (j = ystart... yend, i = 0 ... cam.imageWidth) {
         RNGState state = randomState(i, j);
         Vec3 pixelColor = {0.0f, 0.0f, 0.0f};
         for (int sample = 0; sample < cam.samplesPerPixel; sample++) {
@@ -839,7 +826,6 @@ task void renderImageTile(uniform Image& image, uniform Camera& cam, uniform int
     }
 }
 
-
 export void renderImage(uniform Image& image, uniform Camera& cam, uniform const HittableList& hittables) {
     uniform int threadCount = 8;
     uniform int rowsPerTask = cam.imageHeight / threadCount;
@@ -847,12 +833,13 @@ export void renderImage(uniform Image& image, uniform Camera& cam, uniform const
         rowsPerTask++;
     }
 
-    launch [threadCount] renderImageTile(image, cam, rowsPerTask, hittables);
+    launch[threadCount] renderImageTile(image, cam, rowsPerTask, hittables);
 }
 
 typedef soa<8> Ray soaRay;
 
-task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask, uniform const HittableList& hittables) {
+task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, uniform int rowsPerTask,
+                                     uniform const HittableList& hittables) {
     uniform int ystart = taskIndex * rowsPerTask;
     uniform int yend = min(ystart + rowsPerTask, cam.imageHeight);
 
@@ -862,8 +849,8 @@ task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, 
 
             uniform RayPacket packet;
 
-            uniform soaRay * uniform rays = uniform new uniform soaRay[cam.samplesPerPixel];
-            uniform bool * uniform active = uniform new uniform bool[cam.samplesPerPixel];
+            uniform soaRay* uniform rays = uniform new uniform soaRay[cam.samplesPerPixel];
+            uniform bool* uniform active = uniform new uniform bool[cam.samplesPerPixel];
 
             packet.rays = rays;
             packet.active = active;
@@ -873,7 +860,8 @@ task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, 
                 packet.active[sample] = true;
             }
 
-            uniform Vec3 pixelColor = rayPacketColor(state, cam.background, packet, cam.maxDepth, cam.samplesPerPixel, hittables);
+            uniform Vec3 pixelColor =
+                rayPacketColor(state, cam.background, packet, cam.maxDepth, cam.samplesPerPixel, hittables);
 
             uniform int k = (j * cam.imageWidth + i);
             writeColor(image, pixelColor, cam.samplesPerPixel, k);
@@ -884,7 +872,6 @@ task void renderImageTileWithPackets(uniform Image& image, uniform Camera& cam, 
     }
 }
 
-
 export void renderImageWithPackets(uniform Image& image, uniform Camera& cam, uniform const HittableList& hittables) {
     uniform int threadCount = 8;
     uniform int rowsPerTask = cam.imageHeight / threadCount;
@@ -892,5 +879,5 @@ export void renderImageWithPackets(uniform Image& image, uniform Camera& cam, un
         rowsPerTask++;
     }
 
-    launch [threadCount] renderImageTileWithPackets(image, cam, rowsPerTask, hittables);
+    launch[threadCount] renderImageTileWithPackets(image, cam, rowsPerTask, hittables);
 }

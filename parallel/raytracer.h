@@ -43,7 +43,8 @@ struct float3 { float v[3]; } __attribute__ ((aligned(16)));
 enum HittableType {
     SPHERE = 0,
     QUAD = 1,
-    BVH_NODE = 2 
+    NODE = 2,
+    BVH = 3 
 };
 #endif
 
@@ -70,6 +71,25 @@ enum MaterialType {
 #endif
 #endif
 
+#ifndef __ISPC_STRUCT_Bvh__
+#define __ISPC_STRUCT_Bvh__
+struct Bvh {
+    struct Hittable * objects;
+    struct Node * nodes;
+    uint32_t numNodes;
+    uint32_t numObjects;
+    uint32_t root;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_Hittable__
+#define __ISPC_STRUCT_Hittable__
+struct Hittable {
+    enum HittableType type;
+    void * object;
+};
+#endif
+
 #ifndef __ISPC_STRUCT_interval__
 #define __ISPC_STRUCT_interval__
 struct interval {
@@ -87,20 +107,14 @@ struct aabb {
 };
 #endif
 
-#ifndef __ISPC_STRUCT_BVH_Node__
-#define __ISPC_STRUCT_BVH_Node__
-struct BVH_Node {
+#ifndef __ISPC_STRUCT_Node__
+#define __ISPC_STRUCT_Node__
+struct Node {
     struct aabb bbox;
-    struct Hittable * left;
-    struct Hittable * right;
-};
-#endif
-
-#ifndef __ISPC_STRUCT_Hittable__
-#define __ISPC_STRUCT_Hittable__
-struct Hittable {
-    enum HittableType type;
-    void * object;
+    uint32_t start;
+    uint32_t size;
+    uint32_t left;
+    uint32_t right;
 };
 #endif
 
@@ -171,7 +185,7 @@ struct Image {
 #ifndef __ISPC_STRUCT_HittableList__
 #define __ISPC_STRUCT_HittableList__
 struct HittableList {
-    struct Hittable *  * objects;
+    struct Hittable * objects;
     struct aabb bbox;
     int32_t numObjects;
 };
@@ -185,10 +199,15 @@ struct HittableList {
 extern "C" {
 #endif // __cplusplus
 #if defined(__cplusplus)
-    extern void dummyBVHNode(struct BVH_Node &node);
+    extern void dummyBVH(struct Bvh &bvh);
 #else
-    extern void dummyBVHNode(struct BVH_Node *node);
-#endif // dummyBVHNode function declaraion
+    extern void dummyBVH(struct Bvh *bvh);
+#endif // dummyBVH function declaraion
+#if defined(__cplusplus)
+    extern void dummyNode(struct Node &node);
+#else
+    extern void dummyNode(struct Node *node);
+#endif // dummyNode function declaraion
 #if defined(__cplusplus)
     extern void dummyQuad(struct Quad &quad);
 #else
