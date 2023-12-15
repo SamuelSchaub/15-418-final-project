@@ -62,9 +62,12 @@ int main(int argc, char* argv[]) {
         randomSpheres(imageWidth, samplesPerPixel, maxDepth, vfov, useBVH, bvhMaxLeafSize, usePackets, NUM_SPHERES,
                       ZOOM); // More Spheres
         break;
+    case 4:
+        std::cout << "Scene: middle random spheres" << std::endl;
+        randomSpheres(imageWidth, samplesPerPixel, maxDepth, vfov, useBVH, bvhMaxLeafSize, usePackets, 20,
+                      ZOOM / 2); // More Spheres
+        break;
     default:
-        std::cout << "Invalid scene number" << std::endl;
-        return 1;
         std::cout << "Invalid scene number" << std::endl;
         return 1;
     }

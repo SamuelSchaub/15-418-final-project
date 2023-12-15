@@ -87,21 +87,21 @@ void cornell_box() {
     auto red   = make_shared<lambertian>(color(.65, .05, .05));
     auto white = make_shared<lambertian>(color(.73, .73, .73));
     auto green = make_shared<lambertian>(color(.12, .45, .15));
-    auto light = make_shared<diffuse_light>(color(15, 15, 15));
+    auto light = make_shared<diffuse_light>(color(7, 7, 7));
 
     world.add(make_shared<quad>(point3(555,0,0), vec3(0,555,0), vec3(0,0,555), green));
     world.add(make_shared<quad>(point3(0,0,0), vec3(0,555,0), vec3(0,0,555), red));
 
     // Light
-    world.add(make_shared<quad>(point3(343, 554, 332), vec3(-130,0,0), vec3(0,0,-125), light));
+    world.add(make_shared<quad>(point3(113, 554, 127), vec3(330, 0, 0), vec3(0, 0, 305), light));
 
     world.add(make_shared<quad>(point3(0,0,0), vec3(555,0,0), vec3(0,0,555), white));
     world.add(make_shared<quad>(point3(555,555,555), vec3(-555,0,0), vec3(0,0,-555), white));
     world.add(make_shared<quad>(point3(0,0,555), vec3(555,0,0), vec3(0,555,0), white));
 
-//    // Spheres
-//    world.add(make_shared<sphere>(point3((130 + 295) / 2, 90, (65 + 230) / 2), 90, make_shared<glass>(1.5)));
-//    world.add(make_shared<sphere>(point3((265 + 430) / 2, 90, (295 + 460) / 2), 90, make_shared<mirror>(color(0.7, 0.6, 0.5))));
+   // Spheres
+   world.add(make_shared<sphere>(point3(152.5f, 120.0f, 147.5f), 120.0f, make_shared<glass>(1.5)));
+   world.add(make_shared<sphere>(point3(387.5f, 120.0f, 377.5f), 120.0f, make_shared<mirror>(color(0.7, 0.6, 0.5))));
 
     // Boxes
     // world.add(box(point3(130, 0, 65), point3(295, 165, 230), make_shared<glass>(1.5)));
@@ -113,7 +113,7 @@ void cornell_box() {
 
     cam.aspect_ratio      = 1.0;
     cam.image_width       = 400;
-    cam.samples_per_pixel = 50;
+    cam.samples_per_pixel = 200;
     cam.max_depth         = 50;
     cam.background        = color(0,0,0);
 
@@ -165,21 +165,131 @@ void glass_testing() {
     std::clog << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
 }
 
+void randomSpheres() {
+    hittable_list world;
+
+    auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
+    world.add(make_shared<sphere>(point3(0,-1000,0), 1000, ground_material));
+
+    for (int a = -11; a < 11; a++) {
+        for (int b = -11; b < 11; b++) {
+            auto choose_mat = random_float();
+            point3 center(a + 0.9*random_float(), 0.2, b + 0.9*random_float());
+
+            if ((center - point3(4, 0.2, 0)).length() > 0.9) {
+                shared_ptr<material> sphere_material;
+
+                if (choose_mat < 0.8) {
+                    // diffuse
+                    auto albedo = color::random() * color::random();
+                    sphere_material = make_shared<lambertian>(albedo);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                } else if (choose_mat < 0.95) {
+                    // metal
+                    sphere_material = make_shared<glass>(1.5);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                } else {
+                    // glass
+                    sphere_material = make_shared<glass>(1.5);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                }
+            }
+        }
+    }
+
+    auto material1 = make_shared<glass>(1.5);
+    world.add(make_shared<sphere>(point3(0, 1, 0), 1.0, material1));
+
+    auto material2 = make_shared<lambertian>(color(0.4, 0.2, 0.1));
+    world.add(make_shared<sphere>(point3(-4, 1, 0), 1.0, material2));
+
+    auto material3 = make_shared<mirror>(color(0.7f, 0.6f, 0.5f));
+    world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
+    world = hittable_list(make_shared<bvh_node>(world));
+    camera cam;
+
+    cam.aspect_ratio      = 16.0 / 9.0;
+    cam.image_width       = 1200;
+    cam.samples_per_pixel = 64;
+    cam.max_depth         = 50;
+
+    cam.vfov     = 20;
+    cam.lookfrom = point3(13,2,3);
+    cam.lookat   = point3(0,0,0);
+    cam.vup      = vec3(0,1,0);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    cam.render(world);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::clog << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
+}
+
+
+void randomSpheresExtra() {
+    hittable_list world;
+
+    auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
+    world.add(make_shared<sphere>(point3(0,-1000,0), 1000, ground_material));
+
+    for (int a = -22; a < 22; a++) {
+        for (int b = -22; b < 22; b++) {
+            auto choose_mat = random_float();
+            point3 center(a + 0.9*random_float(), 0.2, b + 0.9*random_float());
+
+            if ((center - point3(4, 0.2, 0)).length() > 0.9) {
+                shared_ptr<material> sphere_material;
+
+                if (choose_mat < 0.8) {
+                    // diffuse
+                    auto albedo = color::random() * color::random();
+                    sphere_material = make_shared<lambertian>(albedo);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                } else if (choose_mat < 0.95) {
+                    // metal
+                    sphere_material = make_shared<glass>(1.5);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                } else {
+                    // glass
+                    sphere_material = make_shared<glass>(1.5);
+                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
+                }
+            }
+        }
+    }
+
+    auto material1 = make_shared<glass>(1.5);
+    world.add(make_shared<sphere>(point3(0, 1, 0), 1.0, material1));
+
+    auto material2 = make_shared<lambertian>(color(0.4, 0.2, 0.1));
+    world.add(make_shared<sphere>(point3(-4, 1, 0), 1.0, material2));
+
+    auto material3 = make_shared<mirror>(color(0.7, 0.6, 0.5));
+    world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
+    world = hittable_list(make_shared<bvh_node>(world));
+    camera cam;
+
+    cam.aspect_ratio      = 16.0 / 9.0;
+    cam.image_width       = 1200;
+    cam.samples_per_pixel = 64;
+    cam.max_depth         = 50;
+
+    cam.vfov     = 20;
+    cam.lookfrom = point3(13,2,30.0f); // ZOOM
+    cam.lookat   = point3(0,0,0);
+    cam.vup      = vec3(0,1,0);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    cam.render(world);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::clog << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
+}
+
 
 
 int main() {
-    switch (7) {
-    case 5:
-        quads();
-        break;
-    case 6:
-        simple_light();
-        break;
-    case 7:
-        cornell_box();
-        break;
-    case 8:
-        glass_testing();
-        break;
-    }
+    cornell_box();
 }

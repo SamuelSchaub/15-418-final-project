@@ -76,6 +76,7 @@ enum MaterialType {
 struct Bvh {
     struct Hittable * objects;
     struct Node * nodes;
+    struct RayQueue * rayQueues;
     uint32_t numNodes;
     uint32_t numObjects;
     uint32_t root;
@@ -115,6 +116,14 @@ struct Node {
     uint32_t size;
     uint32_t left;
     uint32_t right;
+};
+#endif
+
+#ifndef __ISPC_STRUCT_RayQueue__
+#define __ISPC_STRUCT_RayQueue__
+struct RayQueue {
+    bool * inQueue;
+    uint32_t size;
 };
 #endif
 
@@ -182,15 +191,6 @@ struct Image {
 };
 #endif
 
-#ifndef __ISPC_STRUCT_HittableList__
-#define __ISPC_STRUCT_HittableList__
-struct HittableList {
-    struct Hittable * objects;
-    struct aabb bbox;
-    int32_t numObjects;
-};
-#endif
-
 
 ///////////////////////////////////////////////////////////////////////////
 // Functions exported from ispc code
@@ -229,14 +229,9 @@ extern "C" {
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderImage(struct Image &image, struct Camera &cam, const struct HittableList &hittables);
+    extern void renderImageWithPackets(struct Image &image, struct Camera &cam, struct Bvh &bvh);
 #else
-    extern void renderImage(struct Image *image, struct Camera *cam, const struct HittableList *hittables);
-#endif // renderImage function declaraion
-#if defined(__cplusplus)
-    extern void renderImageWithPackets(struct Image &image, struct Camera &cam, const struct HittableList &hittables);
-#else
-    extern void renderImageWithPackets(struct Image *image, struct Camera *cam, const struct HittableList *hittables);
+    extern void renderImageWithPackets(struct Image *image, struct Camera *cam, struct Bvh *bvh);
 #endif // renderImageWithPackets function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
