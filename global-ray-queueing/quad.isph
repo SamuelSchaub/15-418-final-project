@@ -1,0 +1,62 @@
+extern Vec3;
+extern Material;
+extern aabb;
+extern Ray;
+
+export struct Quad {
+    Vec3 Q;
+    Vec3 u;
+    Vec3 v;
+    Material mat;
+    Vec3 normal;
+    float D;
+    Vec3 w;
+    aabb bbox;
+};
+
+export void initQuad(uniform Quad& quad) {
+    uniform Vec3 n = cross(quad.u, quad.v);
+    quad.normal = unitVector(n);
+    quad.D = dot(quad.normal, quad.Q);
+    quad.w = n / dot(n, n);
+}
+
+bool isInterior(const float a, const float b) {
+    if ((a < 0) || (1 < a) || (b < 0) || (1 < b)) {
+        return false;
+    }
+    return true;
+}
+
+bool hitQuad(Quad* quad, Ray* r) {
+
+    float denom = dot(quad->normal, r->direction);
+
+    // No hit if the ray is parallel to the plane
+    float epsilon = 1e-8;
+    if (abs(denom) < epsilon) {
+        return false;
+    }
+
+    // Return false if the hit point parameter t is outside the ray Interval.
+    float t = (quad->D - dot(quad->normal, r->origin)) / denom;
+    if (!(contains(r->ray_t, t))) {
+        return false;
+    }
+
+    Vec3 intersection = rayAt(r, t);
+    Vec3 planarHitptVector = intersection - quad->Q;
+    float alpha = dot(quad->w, cross(planarHitptVector, quad->v));
+    float beta = dot(quad->w, cross(quad->u, planarHitptVector));
+
+    if (!isInterior(alpha, beta)) {
+        return false;
+    }
+
+    r->rec.t = t;
+    r->rec.p = intersection;
+    r->rec.mat = quad->mat;
+    setFaceNormal(r, quad->normal);
+
+    return true;
+}

@@ -1,0 +1,41 @@
+extern Vec3;
+extern Material;
+extern aabb;
+extern Ray;
+
+export struct Sphere {
+    Vec3 center;
+    Material mat;
+    aabb bbox;
+    float radius;
+};
+
+// ispc compiler bug
+export void dummySphere(uniform Sphere& sphere) { return; }
+
+bool hitSphere(Sphere* sphere, Ray* r) {
+    Vec3 oc = r->origin - sphere->center;
+    float a = lengthSquared(r->direction);
+    float halfB = dot(oc, r->direction);
+    float c = lengthSquared(oc) - sphere->radius * sphere->radius;
+
+    float discriminant = (halfB * halfB) - (a * c);
+    if (discriminant < 0)
+        return false;
+    float sqrtd = sqrt(discriminant);
+
+    float root = (-halfB - sqrtd) / a;
+    if (!(surrounds(r->ray_t, root))) {
+        root = (-halfB + sqrtd) / a;
+        if (!(surrounds(r->ray_t, root))) {
+            return false;
+        }
+    }
+
+    r->rec.t = root;
+    r->rec.p = rayAt(r, r->rec.t);
+    r->rec.mat = sphere->mat;
+    Vec3 outwardNormal = (r->rec.p - sphere->center) / sphere->radius;
+    setFaceNormal(r, outwardNormal);
+    return true;
+}

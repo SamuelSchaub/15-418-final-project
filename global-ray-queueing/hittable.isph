@@ -1,0 +1,39 @@
+extern struct Material;
+extern struct aabb;
+extern struct Ray;
+extern Vec3;
+
+struct Sphere;
+struct Quad;
+
+extern bool hitSphere(Sphere* sphere, struct Ray* r);
+extern bool hitQuad(Quad* quad, struct Ray* r);
+
+struct HitRecord {
+    struct Material mat;
+    Vec3 p;
+    Vec3 normal;
+    float t;
+    bool frontFace;
+};
+
+export enum HittableType { SPHERE, QUAD, NODE, BVH };
+
+export struct Hittable {
+    HittableType type;
+    void* object;
+};
+
+bool hitHittable(uniform Hittable& hittable, Ray* r) {
+    switch (hittable.type) {
+    case SPHERE:
+        Sphere* sphere = (Sphere*)(hittable.object);
+        return hitSphere(sphere, r);
+        break;
+    case QUAD:
+        Quad* quad = (Quad*)(hittable.object);
+        return hitQuad(quad, r);
+    default:
+        return false;
+    }
+}

@@ -15,34 +15,34 @@ ispc::float3 add(ispc::float3 a, ispc::float3 b) {
     return c;
 }
 
-float intervalSize(ispc::interval i) { return i.max - i.min; }
+float intervalSize(ispc::Interval i) { return i.max - i.min; }
 
-ispc::interval expandInterval(ispc::interval i, float delta) {
+ispc::Interval expandInterval(ispc::Interval i, float delta) {
     float padding = delta / 2.0f;
-    return ispc::interval{i.min - padding, i.max + padding};
+    return ispc::Interval{i.min - padding, i.max + padding};
 }
 
 ispc::aabb createAABB(ispc::aabb a, ispc::aabb b) {
     ispc::aabb bbox;
-    bbox.x = ispc::interval{std::min(a.x.min, b.x.min), std::max(a.x.max, b.x.max)};
-    bbox.y = ispc::interval{std::min(a.y.min, b.y.min), std::max(a.y.max, b.y.max)};
-    bbox.z = ispc::interval{std::min(a.z.min, b.z.min), std::max(a.z.max, b.z.max)};
+    bbox.x = ispc::Interval{std::min(a.x.min, b.x.min), std::max(a.x.max, b.x.max)};
+    bbox.y = ispc::Interval{std::min(a.y.min, b.y.min), std::max(a.y.max, b.y.max)};
+    bbox.z = ispc::Interval{std::min(a.z.min, b.z.min), std::max(a.z.max, b.z.max)};
     return bbox;
 }
 
 ispc::aabb createAABB(ispc::float3 a, ispc::float3 b) {
     ispc::aabb bbox;
-    bbox.x = ispc::interval{std::min(a.v[0], b.v[0]), std::max(a.v[0], b.v[0])};
-    bbox.y = ispc::interval{std::min(a.v[1], b.v[1]), std::max(a.v[1], b.v[1])};
-    bbox.z = ispc::interval{std::min(a.v[2], b.v[2]), std::max(a.v[2], b.v[2])};
+    bbox.x = ispc::Interval{std::min(a.v[0], b.v[0]), std::max(a.v[0], b.v[0])};
+    bbox.y = ispc::Interval{std::min(a.v[1], b.v[1]), std::max(a.v[1], b.v[1])};
+    bbox.z = ispc::Interval{std::min(a.v[2], b.v[2]), std::max(a.v[2], b.v[2])};
     return bbox;
 }
 
 ispc::aabb padAABB(ispc::aabb a) {
     float delta = 0.0001f;
-    ispc::interval newX = (intervalSize(a.x) >= delta) ? a.x : expandInterval(a.x, delta);
-    ispc::interval newY = (intervalSize(a.y) >= delta) ? a.y : expandInterval(a.y, delta);
-    ispc::interval newZ = (intervalSize(a.z) >= delta) ? a.z : expandInterval(a.z, delta);
+    ispc::Interval newX = (intervalSize(a.x) >= delta) ? a.x : expandInterval(a.x, delta);
+    ispc::Interval newY = (intervalSize(a.y) >= delta) ? a.y : expandInterval(a.y, delta);
+    ispc::Interval newZ = (intervalSize(a.z) >= delta) ? a.z : expandInterval(a.z, delta);
     return ispc::aabb{newX, newY, newZ};
 }
 
@@ -67,7 +67,7 @@ ispc::aabb getAABB(const ispc::Hittable& object) {
     }
 }
 
-ispc::interval getAxis(ispc::aabb bbox, int axis) {
+ispc::Interval getAxis(ispc::aabb bbox, int axis) {
     switch (axis) {
     case 0:
         return bbox.x;
@@ -95,9 +95,9 @@ ispc::aabb calculateBbox(std::vector<ispc::Hittable>& objects, size_t left, size
     auto start = objects.begin() + left;
     auto end = objects.begin() + right;
     ispc::aabb box;
-    box.x = ispc::interval{FLT_MAX, -FLT_MAX};
-    box.y = ispc::interval{FLT_MAX, -FLT_MAX};
-    box.z = ispc::interval{FLT_MAX, -FLT_MAX};
+    box.x = ispc::Interval{FLT_MAX, -FLT_MAX};
+    box.y = ispc::Interval{FLT_MAX, -FLT_MAX};
+    box.z = ispc::Interval{FLT_MAX, -FLT_MAX};
     for (auto it = start; it != end; it++) {
         ispc::Hittable hittable = *it;
         box = createAABB(box, getAABB(hittable));

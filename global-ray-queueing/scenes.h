@@ -4,7 +4,8 @@
 
 // Scenes
 
-void randomSpheres(int imageWidth, int samplesPerPixel, int maxDepth, float vfov, int bvhMaxLeafSize, int numSpheres = 11, float zoom = 3.0f) {
+void randomSpheres(int imageWidth, int samplesPerPixel, int maxDepth, float vfov, bool useBVH, int bvhMaxLeafSize, bool usePackets,
+                   int numSpheres = 11, float zoom = 3.0f) {
     vfov = 20; // constant for random spheres
 
     auto lookfrom = ispc::float3{13, 2, zoom};
@@ -70,12 +71,22 @@ void randomSpheres(int imageWidth, int samplesPerPixel, int maxDepth, float vfov
     ispc::Sphere* sphere3 = createSphere(ispc::float3{4.0f, 1.0f, 0.0f}, 1.0f, material3);
     createHittable(ispc::HittableType::SPHERE, (void*)sphere3, objects);
 
+    ispc::HittableList* hittableList;
+    ispc::Hittable root;
     std::vector<ispc::Node> nodes;
-    ispc::Bvh* bvh = createBVH(objects, nodes, bvhMaxLeafSize);
-    render(camera, bvh);
+    if (useBVH) {
+        ispc::Bvh* bvh = createBVH(objects, nodes, bvhMaxLeafSize);
+        root.type = ispc::HittableType::BVH;
+        root.object = (void*)bvh;
+        hittableList = createHittableList(root);
+    } else {
+        hittableList = createHittableList(objects);
+    }
+
+    render(camera, hittableList, usePackets);
 }
 
-void cornellBox(int imageWidth, int samplesPerPixel, int maxDepth, float vfov, int bvhMaxLeafSize) {
+void cornellBox(int imageWidth, int samplesPerPixel, int maxDepth, float vfov, bool useBVH, int bvhMaxLeafSize, bool usePackets) {
     vfov = 40; // constant for cornell box
 
     auto lookfrom = ispc::float3{278, 278, -800};
@@ -126,7 +137,17 @@ void cornellBox(int imageWidth, int samplesPerPixel, int maxDepth, float vfov, i
     createHittable(ispc::HittableType::QUAD, (void*)quad5, objects);
     createHittable(ispc::HittableType::QUAD, (void*)quad6, objects);
 
+    ispc::HittableList* hittableList;
+    ispc::Hittable root;
     std::vector<ispc::Node> nodes;
-    ispc::Bvh* bvh = createBVH(objects, nodes, bvhMaxLeafSize);
-    render(camera, bvh);
+    if (useBVH) {
+        ispc::Bvh* bvh = createBVH(objects, nodes, bvhMaxLeafSize);
+        root.type = ispc::HittableType::BVH;
+        root.object = (void*)bvh;
+        hittableList = createHittableList(root);
+    } else {
+        hittableList = createHittableList(objects);
+    }
+
+    render(camera, hittableList, usePackets);
 }

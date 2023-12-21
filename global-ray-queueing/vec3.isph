@@ -1,0 +1,52 @@
+const uniform float pi = 3.1415926535897932385f;
+const uniform float infinity = 340282346638528859811704183484516925440.0f;
+
+inline float degreesToRadians(float degrees) { return degrees * pi / 180.0f; }
+
+inline uniform float degreesToRadians(uniform float degrees) { return degrees * pi / 180.0f; }
+
+typedef float<3> Vec3;
+
+export Vec3;
+
+inline float dot(const Vec3 u, const Vec3 v) { return u.x * v.x + u.y * v.y + u.z * v.z; }
+
+inline uniform float dot(uniform const Vec3 u, uniform const Vec3 v) {
+    return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+inline float lengthSquared(const Vec3 v) { return dot(v, v); }
+
+inline uniform float lengthSquared(uniform const Vec3 v) { return dot(v, v); }
+
+inline float length(const Vec3 v) { return sqrt(lengthSquared(v)); }
+
+inline uniform float length(uniform const Vec3 v) { return sqrt(lengthSquared(v)); }
+
+inline Vec3 cross(const Vec3 u, const Vec3 v) {
+    Vec3 product = {u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
+    return product;
+}
+
+inline uniform Vec3 cross(uniform const Vec3 u, uniform const Vec3 v) {
+    uniform Vec3 product = {u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
+    return product;
+}
+
+inline Vec3 unitVector(const Vec3 v) { return v / length(v); }
+
+inline uniform Vec3 unitVector(uniform const Vec3 v) { return v / length(v); }
+
+inline Vec3 reflect(const Vec3 v, const Vec3 n) { return v - 2 * dot(v, n) * n; }
+
+inline Vec3 refract(const Vec3 uv, const Vec3 n, float etaiOverEtat) {
+    float cosTheta = min(dot(-uv, n), 1.0);
+    Vec3 rOutPerp = etaiOverEtat * (uv + cosTheta * n);
+    Vec3 rOutParallel = -sqrt(abs(1.0 - lengthSquared(rOutPerp))) * n;
+    return rOutPerp + rOutParallel;
+}
+
+bool nearZero(const Vec3 v) {
+    const float s = 1e-8f;
+    return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
+}

@@ -45,6 +45,54 @@ void createHittable(ispc::HittableType type, void* object, std::vector<ispc::Hit
     objects.emplace_back(*hittable);
 }
 
+ispc::HittableList* createHittableList(std::vector<ispc::Hittable>& objects) {
+    ispc::HittableList* hittableList = new ispc::HittableList;
+    hittableList->objects = objects.data();
+    hittableList->numObjects = objects.size();
+
+    for (size_t i = 0; i < objects.size(); i++) {
+        switch (objects[i].type) {
+        case ispc::HittableType::SPHERE: {
+            ispc::Sphere* sphere = (ispc::Sphere*)objects[i].object;
+            hittableList->bbox = createAABB(hittableList->bbox, sphere->bbox);
+            break;
+        }
+        case ispc::HittableType::QUAD: {
+            ispc::Quad* quad = (ispc::Quad*)objects[i].object;
+            hittableList->bbox = createAABB(hittableList->bbox, quad->bbox);
+            break;
+        }
+        case ispc::HittableType::NODE: {
+            ispc::Node* node = (ispc::Node*)objects[i].object;
+            hittableList->bbox = createAABB(hittableList->bbox, node->bbox);
+            break;
+        }
+        case ispc::HittableType::BVH: {
+            ispc::Bvh* bvh = (ispc::Bvh*)objects[i].object;
+            hittableList->bbox = createAABB(hittableList->bbox, bvh->nodes[bvh->root].bbox);
+            break;
+        }
+        }
+    }
+
+    return hittableList;
+}
+
+ispc::HittableList* createHittableList(ispc::Hittable object) {
+    ispc::HittableList* hittableList = new ispc::HittableList;
+
+    ispc::Hittable* objs = new ispc::Hittable[1];
+    objs[0] = object;
+
+    hittableList->objects = objs;
+    hittableList->numObjects = 1;
+
+    auto bbox = getAABB(object);
+    hittableList->bbox = createAABB(hittableList->bbox, bbox);
+
+    return hittableList;
+}
+
 ispc::Material* createMaterial(ispc::MaterialType type, ispc::float3 albedo) {
     ispc::Material* material = new ispc::Material;
     material->type = type;

@@ -1,0 +1,155 @@
+extern Vec3;
+extern HitRecord;
+extern Interval;
+extern RNGState;
+extern Camera;
+
+extern Vec3 randomUnitVec(varying RNGState *uniform state);
+extern float randomFloat(varying RNGState *uniform state);
+
+export struct Ray {
+    Vec3 origin;
+    Vec3 direction;
+    Vec3 color;
+    Vec3 lightEmitted;
+    Interval ray_t;
+    HitRecord rec;
+    uint32 imageIndex;
+    uint32 rayIndex;
+    int depth;
+};
+
+export struct RayPacket {
+    Ray* rays;
+    bool* active;
+    uint32 size;
+};
+
+Vec3 rayAt(Ray* r, float t) { return r->origin + t * r->direction; }
+
+inline bool anyActive(uniform RayPacket* uniform packet) {
+    bool localActive = false;
+    foreach (i = 0 ... packet->size) {
+        localActive |= packet->active[i];
+    }
+    return any(localActive);
+}
+
+void setFaceNormal(Ray* r, Vec3 outwardNormal) {
+    r->rec.frontFace = dot(r->direction, outwardNormal) < 0;
+    r->rec.normal = r->rec.frontFace ? outwardNormal : -1.0f * outwardNormal;
+}
+
+bool lambertianScatter(varying RNGState *uniform state, Ray r, Vec3& attenuation, Ray& scattered) {
+    Vec3 scatterDirection = r.rec.normal + randomUnitVec(state);
+    if (nearZero(scattered.direction)) {
+        scattered.direction = r.rec.normal;
+    }
+    Ray newRay = {r.rec.p, scatterDirection};
+    scattered = newRay;
+    attenuation = r.rec.mat.albedo;
+    return true;
+}
+
+bool mirrorScatter(Ray r, Vec3& attenuation, Ray& scattered) {
+    Vec3 reflected = reflect(unitVector(r.direction), r.rec.normal);
+    Ray newRay = {r.rec.p, reflected};
+    scattered = newRay;
+    attenuation = r.rec.mat.albedo;
+    return (dot(scattered.direction, r.rec.normal) > 0);
+}
+
+float glassReflectance(const float cosine, const float refIdx) {
+    float r0 = (1 - refIdx) / (1 + refIdx);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
+bool glassScatter(varying RNGState *uniform state, Ray r, Vec3& attenuation, Ray& scattered) {
+    float indexOfRefraction = 1.5; // constant
+
+    Vec3 atten = {1.0f, 1.0f, 1.0f};
+    attenuation = atten;
+
+    float refractionRatio = r.rec.frontFace ? (1.0f / indexOfRefraction) : indexOfRefraction;
+
+    Vec3 unitDirection = unitVector(r.direction);
+    float cosTheta = min(dot(-unitDirection, r.rec.normal), 1.0);
+    float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+
+    bool cannotRefract = (refractionRatio * sinTheta) > 1.0f;
+    Vec3 direction;
+
+    if (cannotRefract || glassReflectance(cosTheta, refractionRatio) > randomFloat(state)) {
+        direction = reflect(unitDirection, r.rec.normal);
+    } else {
+        direction = refract(unitDirection, r.rec.normal, refractionRatio);
+    }
+
+    Ray newRay = {r.rec.p, direction};
+    scattered = newRay;
+
+    return true;
+}
+
+Vec3 emitted(Ray* r) {
+    switch (r->rec.mat.type) {
+    case DIFFUSE_LIGHT:
+        return r->rec.mat.albedo;
+        break;
+    default:
+        Vec3 black = {0.0f, 0.0f, 0.0f};
+        return black;
+        break;
+    }
+}
+
+bool scatter(varying RNGState *uniform state, Ray r, Vec3& attenuation, Ray& scattered) {
+    switch (r.rec.mat.type) {
+    case LAMBERTIAN:
+        return lambertianScatter(state, r, attenuation, scattered);
+    case MIRROR:
+        return mirrorScatter(r, attenuation, scattered);
+    case GLASS:
+        return glassScatter(state, r, attenuation, scattered);
+    case DIFFUSE_LIGHT:
+        return false;
+    default:
+        return false;
+    }
+}
+
+Vec3 pixelSampleSquare(varying RNGState *uniform state, uniform Camera& cam) {
+    float px = -0.5f + randomFloat(state);
+    float py = -0.5f + randomFloat(state);
+    return (px * cam.pixelDeltaU) + (py * cam.pixelDeltaV);
+}
+
+inline Ray getRay(varying RNGState *uniform state, uniform Camera& cam, int i, int j, uint32 rayIndex) {
+    // Get a randomly sampled camera ray for the pixel at location i,j.
+    Ray r;
+    r.imageIndex = j * cam.imageWidth + i;
+    Vec3 pixelCenter = cam.pixel00Location + (i * cam.pixelDeltaU) + (j * cam.pixelDeltaV);
+    Vec3 pixelSample = pixelCenter + pixelSampleSquare(state, cam);
+
+    Vec3 rayOrigin = cam.center;
+    Vec3 rayDirection = pixelSample - rayOrigin;
+
+    r.origin = rayOrigin;
+    r.direction = rayDirection;
+
+    Vec3 color = {1.0f, 1.0f, 1.0f};
+    r.color = color;
+
+    Vec3 lightEmitted = {0.0f, 0.0f, 0.0f};
+    r.lightEmitted = lightEmitted;
+
+    r.depth = cam.maxDepth;
+    r.rayIndex = rayIndex;
+    Interval range = {0.001f, infinity};
+    r.ray_t = range;
+    HitRecord rec;
+    r.rec = rec;
+
+    return r;
+}

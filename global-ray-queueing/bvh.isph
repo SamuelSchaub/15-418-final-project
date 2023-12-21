@@ -1,0 +1,100 @@
+extern Interval;
+extern Vec3;
+extern Ray;
+
+export struct aabb {
+    Interval x;
+    Interval y;
+    Interval z;
+};
+
+aabb aabbFromPoints(const Vec3& a, const Vec3& b) {
+    aabb result;
+    Interval x = {min(a.x, b.x), max(a.x, b.x)};
+    Interval y = {min(a.y, b.y), max(a.y, b.y)};
+    Interval z = {min(a.z, b.z), max(a.z, b.z)};
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return result;
+}
+
+aabb aabbFromAABBs(const aabb& a, const aabb& b) {
+    aabb result;
+    result.x = intervalUnion(a.x, b.x);
+    result.y = intervalUnion(a.y, b.y);
+    result.z = intervalUnion(a.z, b.z);
+    return result;
+}
+
+Interval getAxis(const uniform aabb& bbox, const int axis) {
+    switch (axis) {
+    case 0:
+        return bbox.x;
+    case 1:
+        return bbox.y;
+    case 2:
+        return bbox.z;
+    default:
+        return bbox.x;
+    }
+}
+
+bool aabbHit(const uniform aabb& bbox, Ray* r) {
+    for (int a = 0; a < 3; a++) {
+        float invD = 1.0f / r->direction[a];
+        float orig = r->origin[a];
+
+        Interval axis = getAxis(bbox, a);
+        float t0 = (axis.min - orig) * invD;
+        float t1 = (axis.max - orig) * invD;
+
+        if (invD < 0.0f) {
+            float temp = t0;
+            t0 = t1;
+            t1 = temp;
+        }
+
+        if (t0 > r->ray_t.min) {
+            r->ray_t.min = t0;
+        }
+
+        if (t1 < r->ray_t.max) {
+            r->ray_t.max = t1;
+        }
+
+        if (r->ray_t.max <= r->ray_t.min) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+export struct Node {
+    aabb bbox;
+    uint32 start;
+    uint32 size;
+    uint32 left;
+    uint32 right;
+};
+
+struct RayQueue {
+    uniform bool* uniform inQueue;
+    uniform uint32 size;
+};
+
+export struct Bvh {
+    uniform Hittable* objects;
+    uniform Node* nodes;
+    uniform RayQueue* uniform rayQueues;
+    uniform uint32 numNodes;
+    uniform uint32 numObjects;
+    uniform uint32 root;
+};
+
+bool isLeaf(const uniform Node& node) { return node.left == node.right; }
+
+export void dummyBVH(uniform Bvh& bvh) { return; }
+
+export void dummyNode(uniform Node& node) { return; }

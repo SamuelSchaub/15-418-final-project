@@ -18,18 +18,24 @@ void writePPMImage(ispc::Image& image, int width, int height, const char* filena
 
 // Render scene
 
-void render(ispc::Camera* camera, ispc::Bvh* bvh) {
+void render(ispc::Camera* camera, ispc::HittableList* hittableList, bool usePackets) {
     ispc::Image image;
-    image.R = new int[camera->imageWidth * camera->imageHeight]();
-    image.G = new int[camera->imageWidth * camera->imageHeight]();
-    image.B = new int[camera->imageWidth * camera->imageHeight]();
+    image.R = new int[camera->imageWidth * camera->imageHeight];
+    image.G = new int[camera->imageWidth * camera->imageHeight];
+    image.B = new int[camera->imageWidth * camera->imageHeight];
 
     std::chrono::steady_clock::time_point start;
     std::chrono::steady_clock::time_point end;
     std::cout << "Rendering image..." << std::endl;
-    start = std::chrono::high_resolution_clock::now();
-    ispc::renderImageWithPackets(image, *camera, *bvh);
-    end = std::chrono::high_resolution_clock::now();
+    if (usePackets) {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImage(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    } else {
+        start = std::chrono::high_resolution_clock::now();
+        ispc::renderImage(image, *camera, *hittableList);
+        end = std::chrono::high_resolution_clock::now();
+    }
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
 
@@ -39,5 +45,5 @@ void render(ispc::Camera* camera, ispc::Bvh* bvh) {
     delete[] image.G;
     delete[] image.B;
     delete camera;
-    delete bvh;
+    delete hittableList;
 }

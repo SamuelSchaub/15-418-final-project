@@ -1,0 +1,23 @@
+export struct Interval {
+    float min;
+    float max;
+};
+
+Interval intervalUnion(const Interval& a, const Interval& b) {
+    Interval result;
+    result.min = min(a.min, b.min);
+    result.max = max(a.max, b.max);
+    return result;
+}
+
+bool contains(const Interval a, const float x) { return (a.min <= x) && (x <= a.max); }
+
+bool surrounds(const Interval a, const float x) { return (a.min < x) && (x < a.max); }
+
+float size(const Interval& a) { return a.max - a.min; }
+
+Interval expand(const Interval& a, const float delta) {
+    float paddding = delta / 2.0f;
+    Interval result = {a.min - paddding, a.max + paddding};
+    return result;
+}

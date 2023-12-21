@@ -91,9 +91,9 @@ struct Hittable {
 };
 #endif
 
-#ifndef __ISPC_STRUCT_interval__
-#define __ISPC_STRUCT_interval__
-struct interval {
+#ifndef __ISPC_STRUCT_Interval__
+#define __ISPC_STRUCT_Interval__
+struct Interval {
     float min;
     float max;
 };
@@ -102,9 +102,9 @@ struct interval {
 #ifndef __ISPC_STRUCT_aabb__
 #define __ISPC_STRUCT_aabb__
 struct aabb {
-    struct interval x;
-    struct interval y;
-    struct interval z;
+    struct Interval x;
+    struct Interval y;
+    struct Interval z;
 };
 #endif
 
@@ -135,6 +135,16 @@ struct Material {
 };
 #endif
 
+#ifndef __ISPC_STRUCT_Sphere__
+#define __ISPC_STRUCT_Sphere__
+struct Sphere {
+    struct float3  center;
+    struct Material mat;
+    struct aabb bbox;
+    float radius;
+};
+#endif
+
 #ifndef __ISPC_STRUCT_Quad__
 #define __ISPC_STRUCT_Quad__
 struct Quad {
@@ -146,16 +156,6 @@ struct Quad {
     float D;
     struct float3  w;
     struct aabb bbox;
-};
-#endif
-
-#ifndef __ISPC_STRUCT_Sphere__
-#define __ISPC_STRUCT_Sphere__
-struct Sphere {
-    struct float3  center;
-    struct Material mat;
-    struct aabb bbox;
-    float radius;
 };
 #endif
 
@@ -191,6 +191,15 @@ struct Image {
 };
 #endif
 
+#ifndef __ISPC_STRUCT_HittableList__
+#define __ISPC_STRUCT_HittableList__
+struct HittableList {
+    struct Hittable * objects;
+    struct aabb bbox;
+    int32_t numObjects;
+};
+#endif
+
 
 ///////////////////////////////////////////////////////////////////////////
 // Functions exported from ispc code
@@ -209,11 +218,6 @@ extern "C" {
     extern void dummyNode(struct Node *node);
 #endif // dummyNode function declaraion
 #if defined(__cplusplus)
-    extern void dummyQuad(struct Quad &quad);
-#else
-    extern void dummyQuad(struct Quad *quad);
-#endif // dummyQuad function declaraion
-#if defined(__cplusplus)
     extern void dummySphere(struct Sphere &sphere);
 #else
     extern void dummySphere(struct Sphere *sphere);
@@ -229,10 +233,10 @@ extern "C" {
     extern void initialize(struct Camera *cam);
 #endif // initialize function declaraion
 #if defined(__cplusplus)
-    extern void renderImageWithPackets(struct Image &image, struct Camera &cam, struct Bvh &bvh);
+    extern void renderImage(struct Image &image, struct Camera &cam, struct HittableList &hittables);
 #else
-    extern void renderImageWithPackets(struct Image *image, struct Camera *cam, struct Bvh *bvh);
-#endif // renderImageWithPackets function declaraion
+    extern void renderImage(struct Image *image, struct Camera *cam, struct HittableList *hittables);
+#endif // renderImage function declaraion
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

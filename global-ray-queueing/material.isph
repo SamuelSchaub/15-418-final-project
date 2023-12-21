@@ -1,0 +1,13 @@
+extern Vec3;
+
+export enum MaterialType {
+    LAMBERTIAN,
+    MIRROR,
+    GLASS,
+    DIFFUSE_LIGHT,
+};
+
+export struct Material {
+    MaterialType type;
+    Vec3 albedo;
+};

@@ -1,0 +1,64 @@
+extern Vec3;
+
+// From (https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm)
+uint32 randomSeedGenerator(uint32 x, uint32 y) {
+    uint32 v = x;
+    uint32 w = y;
+    uint32 s = 0;
+
+    uint32 k1 = 0xa341316c;
+    uint32 k2 = 0xc8013ea4;
+    uint32 k3 = 0xad90777d;
+    uint32 k4 = 0x7e95761e;
+
+    for (uint32 i = 0; i < 16; i++) {
+        s += 0x9e3779b9;
+        v += ((w << 4) + k1) ^ (w + s) ^ ((w >> 5) + k2);
+        w += ((v << 4) + k3) ^ (v + s) ^ ((v >> 5) + k4);
+    }
+
+    return v;
+}
+
+inline RNGState randomState(varying RNGState *uniform state, varying int x, varying int y) {
+    seed_rng(state, randomSeedGenerator(x, y) + programIndex);
+}
+
+float randomFloat(varying RNGState *uniform state) { 
+    float result = frandom(state); 
+    return result;
+}
+
+float randomFloat(varying RNGState *uniform state, float minVal, float maxVal) {
+    return minVal + (maxVal - minVal) * randomFloat(state);
+}
+
+Vec3 randomVec(varying RNGState *uniform state) {
+    Vec3 v = {randomFloat(state), randomFloat(state), randomFloat(state)};
+    return v;
+}
+
+Vec3 randomVec(varying RNGState *uniform state, float minVal, float maxVal) {
+    Vec3 v = {randomFloat(state, minVal, maxVal), randomFloat(state, minVal, maxVal),
+              randomFloat(state, minVal, maxVal)};
+    return v;
+}
+
+Vec3 randomVecInUnitSphere(varying RNGState *uniform state) {
+    while (true) {
+        Vec3 p = randomVec(state, -1, 1);
+        if (lengthSquared(p) < 1)
+            return p;
+    }
+}
+
+Vec3 randomUnitVec(varying RNGState *uniform state) { return unitVector(randomVecInUnitSphere(state)); }
+
+Vec3 randomVecOnHemisphere(varying RNGState *uniform state, const Vec3& normal) {
+    Vec3 onUnitSphere = randomUnitVec(state);
+    if (dot(onUnitSphere, normal) > 0.0) {
+        return onUnitSphere;
+    } else {
+        return (-1.0f * onUnitSphere);
+    }
+}

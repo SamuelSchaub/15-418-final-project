@@ -1,0 +1,83 @@
+extern Vec3;
+
+export struct Image {
+    uniform int* R;
+    uniform int* G;
+    uniform int* B;
+};
+
+float linearToGamma(const float linearComponenet) { return sqrt(linearComponenet); }
+
+uniform float linearToGamma(const uniform float linearComponenet) { return sqrt(linearComponenet); }
+
+void writeColor(uniform Image& image, uniform Vec3 pixelColor, const uniform int samplesPerPixel,
+                const uniform int k) {
+    pixelColor = (1.0f / samplesPerPixel) * pixelColor;
+    pixelColor.x = linearToGamma(pixelColor.x);
+    pixelColor.y = linearToGamma(pixelColor.y);
+    pixelColor.z = linearToGamma(pixelColor.z);
+
+    uniform float low = 0.000f;
+    uniform float high = 0.999f;
+
+    uniform int r = (uniform int)(256 * clamp(pixelColor.x, low, high));
+    uniform int g = (uniform int)(256 * clamp(pixelColor.y, low, high));
+    uniform int b = (uniform int)(256 * clamp(pixelColor.z, low, high));
+
+    image.R[k] = r;
+    image.G[k] = g;
+    image.B[k] = b;
+}
+
+export struct Camera {
+    uniform float aspectRatio;   // Ratio of image width over heigh
+    uniform int imageWidth;      // Rendered image width in pixel count
+    uniform int samplesPerPixel; // Count of random samples for each pixel
+    uniform int maxDepth;        // Maximum number of ray bounces into scene
+    uniform float vfov;
+    uniform Vec3 lookfrom;
+    uniform Vec3 lookat;
+    uniform Vec3 vup;
+    uniform int imageHeight;      // Rendered image height
+    uniform Vec3 center;          // Camera center
+    uniform Vec3 pixel00Location; // Location of pixel (0,0)
+    uniform Vec3 pixelDeltaU;     // Offset to pixel to the right
+    uniform Vec3 pixelDeltaV;     // Offset to pixel below
+    uniform Vec3 u;
+    uniform Vec3 v;
+    uniform Vec3 w;
+    uniform Vec3 background;
+};
+
+export void initialize(uniform Camera& cam) {
+    cam.imageHeight = (int)(cam.imageWidth / cam.aspectRatio);
+    cam.imageHeight = (cam.imageHeight < 1) ? 1 : cam.imageHeight;
+
+    cam.center = cam.lookfrom;
+
+    // Determine viewport dimensions.
+    uniform float focalLength = length(cam.lookfrom - cam.lookat);
+    uniform float theta = degreesToRadians(cam.vfov);
+    uniform float h = tan(theta / 2);
+    uniform float viewportHeight = 2 * h * focalLength;
+    uniform float viewportWidth = viewportHeight * (float)cam.imageWidth / (float)cam.imageHeight;
+
+    // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+    cam.w = unitVector(cam.lookfrom - cam.lookat);
+    cam.u = unitVector(cross(cam.vup, cam.w));
+    cam.v = cross(cam.w, cam.u);
+
+    // Calculate the vectors across the horizontal and down the vertical
+    // viewport edges.
+    uniform Vec3 viewportU = viewportWidth * cam.u;
+    uniform Vec3 viewportV = viewportHeight * -cam.v;
+
+    // Calculate the horizontal and vertical delta vectors from pixel to pixel.
+    cam.pixelDeltaU = viewportU / (float)cam.imageWidth;
+    cam.pixelDeltaV = viewportV / (float)cam.imageHeight;
+
+    // Calculate the location of the upper left pixel.
+    uniform Vec3 viewportUpperLeft =
+        cam.center - (focalLength * cam.w) - viewportU / 2 - viewportV / 2;
+    cam.pixel00Location = viewportUpperLeft + 0.5f * cam.pixelDeltaU + 0.5f * cam.pixelDeltaV;
+}
